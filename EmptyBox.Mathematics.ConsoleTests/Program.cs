@@ -16,6 +16,7 @@ namespace EmptyBox.Mathematics.ConsoleTests
     {
         static void Main(string[] args)
         {
+            //
             ScalarFunction x = "x";
             ScalarFunction y = "y";
             ScalarFunction a = "a";
