@@ -34,10 +34,12 @@ namespace EmptyBox.Mathematics.ConsoleTests
             VectorFunction r = NewColumnVector(new ScalarFunction[] { i, j });
             BinaryFunction k = MatrixMethods.RotationMethod(m, v, r);
             //k = k.Calculate();
+            Console.WriteLine(((a * i + c * j) / (a * a + c * c)).Calculate());
             var sqrt = op_Exponentiation(op_Exponentiation(a, 2) + op_Exponentiation(c, 2), 0.5);
             var d_y = ((a * j - c * i) / (a * d - c * b)) * (a * b + c * d);
-            var gg = ((x * (a * a + c * c)) + d_y) / sqrt == (a * i + c * j) / sqrt;
+            var gg = ((x * (a * a + c * c)) + y) / sqrt == (a * i + c * j) / sqrt;
             var gg2 = NewScalarFind(x, gg).Calculate();
+            var gg3 = gg2.Calculate(y == d_y);
             Console.ReadKey();
         }
     }

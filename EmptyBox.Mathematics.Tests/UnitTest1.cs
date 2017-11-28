@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using EmptyBox.Mathematics.Expressions;
 using static EmptyBox.Mathematics.Expressions.ScalarFunction;
+using static EmptyBox.Mathematics.Expressions.BinaryFunction;
 
 namespace EmptyBox.Mathematics.Tests
 {
@@ -27,39 +28,45 @@ namespace EmptyBox.Mathematics.Tests
             double b = Random.NextDouble();
             ScalarFunction x = "x";
             ScalarFunction y = "y";
-            double? result = (x + y).Calculate("x" == NewConstant(a) & "y" == NewConstant(b));
+            double? result = (x + y).Calculate(NewScalarFind("x", "x" == NewConstant(a)) & NewScalarFind("y", "y" == NewConstant(b)));
             Assert.AreEqual(a + b, result);
-            result = (x - y).Calculate("x" == NewConstant(a) & "y" == NewConstant(b));
+            result = (x - y).Calculate(NewScalarFind("x", "x" == NewConstant(a)) & NewScalarFind("y", "y" == NewConstant(b)));
             Assert.AreEqual(a - b, result);
-            result = (x * y).Calculate("x" == NewConstant(a) & "y" == NewConstant(b));
+            result = (x * y).Calculate(NewScalarFind("x", "x" == NewConstant(a)) & NewScalarFind("y", "y" == NewConstant(b)));
             Assert.AreEqual(a * b, result);
         }
 
         [TestMethod]
-        public void CheckBinaryAddition()
+        public void CheckOperators()
         {
             ScalarFunction x = "x";
             ScalarFunction y = "y";
+            ScalarFunction z = "z";
             Assert.AreEqual(x + y, x + y);
             Assert.AreEqual(y + x, y + x);
             Assert.AreEqual(x + x, 2 * x);
             Assert.AreEqual(y + y, 2 * y);
             Assert.AreEqual(0 + x, x);
             Assert.AreEqual(x + 0, x);
-        }
-
-        [TestMethod]
-        public void CheckSubtraction()
-        {
-            ScalarFunction x = "x";
-            ScalarFunction y = "y";
+            Assert.AreEqual(-y + x, x - y);
+            Assert.AreEqual(x + -y, x - y);
+            Assert.AreEqual(-x + 0, -x);
+            Assert.AreEqual(0 + -x, -x);
             Assert.AreEqual(0 - x, -x);
-            Assert.AreEqual(x - 0, x);
-            Assert.AreEqual(x - x, 0);
-            Assert.AreEqual(x - y, x - y);
-            Assert.AreEqual(y - x, y - x);
-            Assert.AreNotEqual(y - x, x - y);
-            Assert.AreNotEqual(x - y, y - x);
+            Assert.AreEqual((x - y) + z, (x + z) - y);
+            Assert.AreEqual((x + -y) + z, (x + z) - y);
+            Assert.AreEqual(-x + y + z, y + z - x);
+            Assert.AreEqual(-x - y + z, z - (x + y));
+            Assert.AreEqual(-x + -y + z, z - (x + y));
+            Assert.AreEqual(x + y - z, x + y - z);
+            Assert.AreEqual(x - y - z, x - (y + z));
+            Assert.AreEqual(-x + -y + -z, -(x + y + z));
+            Assert.AreEqual(x * x, op_Exponentiation(x, 2));
+            Assert.AreEqual(x * y, x * y);
+            Assert.AreEqual(y * x, x * y);
+            Assert.AreEqual(-x * y, -(y * x));
+            Assert.AreEqual(x * -y, -(x * y));
+            Assert.AreEqual(-x * -y, x * y);
         }
 
         [TestMethod]

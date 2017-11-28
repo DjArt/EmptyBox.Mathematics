@@ -28,7 +28,7 @@ type public ComputationErrors =
 /// </summary>
 type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
     /// <summary>
-    /// Константа, не использующуюся при расчётах.
+    /// Константа, не использующуюся при расчётах. Так же является нейтральным эелементом по отношению ко всем операциям.
     /// </summary>
     | None
     /// <summary>
@@ -88,8 +88,6 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
     | Negate of X : ScalarFunction
     | Confirmation of X : ScalarFunction
     | Module of X : ScalarFunction
-    | Lg of X : ScalarFunction
-    | Ln of X : ScalarFunction
     | Sign of X : ScalarFunction
     //Binary operations
     | Limit of X : ScalarFunction * Y : BinaryFunction
@@ -117,6 +115,7 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
     | MatrixColumnsCount of X : MatrixFunction
     | MatrixElementAt of X : MatrixFunction * RowIndex : ScalarFunction * ColumnIndex : ScalarFunction
     | Maximum of Functions : IEnumerable<ScalarFunction>
+    | Minimum of Functions : IEnumerable<ScalarFunction>
 
     override this.Equals(obj) =
         match obj with
@@ -193,8 +192,6 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
         | Subtraction(fun0, fun1) -> 1348 ^^^ fun0.GetHashCode() ^^^ fun1.GetHashCode()
         | Division(fun0, fun1) -> 9825 ^^^ fun0.GetHashCode() ^^^ fun1.GetHashCode()
         | Log(fun0, fun1) -> 7981 ^^^ fun0.GetHashCode() ^^^ fun1.GetHashCode()
-        | Ln(fun0) -> 7981 ^^^ Math.E.GetHashCode() ^^^ fun0.GetHashCode()
-        | Lg(fun0) -> 7981 ^^^ (10.).GetHashCode() ^^^ fun0.GetHashCode()
         | Addition(list0) -> ScalarFunction._RecursiveHash(2596, List.ofSeq(list0))
         | Multiply(list0) -> ScalarFunction._RecursiveHash(6574, List.ofSeq(list0))
         | _ -> -2
@@ -205,7 +202,7 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
             | Constant _ | Variable _ | DefinedVariable _ | Pi | Exponent | ImaginaryOne -> 255uy
             | Addition _ | Subtraction _ -> 1uy
             | Multiply _ | Division _  | Remainder _ -> 2uy
-            | Power _ | Log _ | Ln _ | Lg _ | Negate _ -> 3uy
+            | Power _ | Log _ | Negate _ -> 3uy
             | Sin _ | Cos _ | Tg _ | Ctg _ | Arcsin _ | Arccos _ | Arctg _ | Arcctg _ | Sec _ | Cosec _ | Cot _ -> 4uy
             | Module _ | IntegerPart _ | Floor _ | Ceiling _ | Devirative _ -> 254uy
             | _ -> 0uy
@@ -213,57 +210,237 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
     member this.Identificator
         with get() : string[] =
             match this with
-            | Addition _ | Confirmation _ -> [|"+"|]
-            | Multiply _ | VectorMultiply _ -> [|"*"|]
-            | Subtraction _ | Negate _ -> [|"-"|]
-            | Division _ -> [|"/"|]
-            | Power _ -> [|"^"; "√"; "∛"; "∜"|]
-            | Sin _ -> [|"sin"|]
-            | Cos _ -> [|"cos"|]
-            | Tg _ -> [|"tg"|]
-            | Ctg _ -> [|"ctg"|]
-            | Arcsin _ -> [|"arcsin"|]
-            | Arccos _ -> [|"arccos"|]
-            | Arctg _ -> [|"arctg"|]
-            | Arcctg _ -> [|"arcctg"|]
-            | Sec _ -> [|"sec"|]
-            | Cosec _ -> [|"cosec"|]
-            | Cot _ -> [|"cot"|]
-            | Module _ -> [|"|"|]
-            | Length _ -> [|"|"|]
-            | IntegerPart _ -> [|"["; "]"|]
-            | Floor _ -> [|"⎣"; "⎦"|]
-            | Ceiling _ -> [|"⎡"; "⎤"|]
-            | Limit _ -> [|"→"|]
-            | Devirative _ -> [|"'";"∂"|]
-            | Integral _ | DefinedIntegral _ -> [|"∫"; "∬"; "∭"|]
-            | CurvilinearIntegral _ -> [|"∱"; "∲"; "∳"|]
-            | SurfaceIntegral _ -> [|"∮"; "∯"; "∰"|]
-            | Remainder _ -> [|"%"|]
-            | Determinant _ -> [|"∆"|]
-            | Log _ -> [|"log"|]
-            | Ln _ -> [|"ln"|]
-            | Lg _ -> [|"lg"|]
-            | ImaginaryOne -> [|"i"|]
-            | Exponent -> [|"e"|]
-            | Pi -> [|"π"|]
-            | GoldenNumber -> [|"Φ"|]
-            | SilverNumber -> [|"δₛ"|]
-            | EulerConstant -> [|"γ"|]
-            | PlasticNumber -> [|"ρ"|]
-            | Infinity -> [|"∞"|]
-            | Variable(name) -> [|name|]
-            | Constant(value) -> [|value.ToString()|]
-            | None -> [|"‽"|]
-            | _  -> [|"?"|]
+            | Addition _
+            | Confirmation _ ->
+                [|"+"|]
+            | Multiply _
+            | VectorMultiply _ ->
+                [|"*"|]
+            | Subtraction _
+            | Negate _ ->
+                [|"-"|]
+            | Division _ ->
+                [|"/"|]
+            | Power _ ->
+                [|"^"; "√"; "∛"; "∜"|]
+            | Sin _ ->
+                [|"sin"|]
+            | Cos _ ->
+                [|"cos"|]
+            | Tg _ ->
+                [|"tg"|]
+            | Ctg _ ->
+                [|"ctg"|]
+            | Arcsin _ ->
+                [|"arcsin"|]
+            | Arccos _ ->
+                [|"arccos"|]
+            | Arctg _ ->
+                [|"arctg"|]
+            | Arcctg _ ->
+                [|"arcctg"|]
+            | Sec _ ->
+                [|"sec"|]
+            | Cosec _ ->
+                [|"cosec"|]
+            | Cot _ ->
+                [|"cot"|]
+            | Module _
+            | Length _ ->
+                [|"|"|]
+            | IntegerPart _ ->
+                [|"["; "]"|]
+            | Floor _ ->
+                [|"⎣"; "⎦"|]
+            | Ceiling _ ->
+                [|"⎡"; "⎤"|]
+            | Limit _ ->
+                [|"→"|]
+            | Devirative _ ->
+                [|"'"; "d"; "∂"|]
+            | Integral _
+            | DefinedIntegral _->
+                [|"∫"; "∬"; "∭"|]
+            | CurvilinearIntegral _ ->
+                [|"∱"; "∲"; "∳"|]
+            | SurfaceIntegral _ ->
+                [|"∮"; "∯"; "∰"|]
+            | Remainder _ ->
+                [|"%"|]
+            | Determinant _ ->
+                [|"∆"|]
+            | Log _ ->
+                [|"log"; "ln"; "lg"|]
+            | ImaginaryOne ->
+                [|"i"|]
+            | Exponent ->
+                [|"e"|]
+            | Pi ->
+                [|"π"|]
+            | GoldenNumber ->
+                [|"Φ"|]
+            | SilverNumber ->
+                [|"δₛ"|]
+            | EulerConstant ->
+                [|"γ"|]
+            | PlasticNumber ->
+                [|"ρ"|]
+            | Infinity ->
+                [|"∞"|]
+            | Variable(name) ->
+                [|name|]
+            | Constant(value) ->
+                [|value.ToString()|]
+            | MatrixElementAt _
+            | VectorElementAt _ ->
+                [|"#"|]
+            | Maximum _ ->
+                [|"max"|]
+            | Minimum _ ->
+                [|"max"|]
+            | None ->
+                [|"‽"|]
+            | _  ->
+                [|"?"|]
 
+    /// <summary>
+    /// Поиск указанной функции в данной.
+    /// </summary>
+    /// <param name="func">Искомая функция</param>
     member this.Contains(func : ScalarFunction) : bool =
         match this with
         | x when x = func -> true
-        | Addition(functions) | Multiply(functions) -> functions.Any(fun x -> x.Contains(func))
-        | Negate(x) | Module(x) | Sin(x) | Cos(x) | Tg(x) | Ctg(x) | Ln(x) | Lg(x) | Arcsin(x) | Arccos(x) | Arctg(x) | Arcctg(x) | Sec(x) | Cosec(x) | Cot(x) -> x.Contains(func)
-        | Subtraction(x, y) | Division(x, y) | Power(x, y) | Devirative(x, y) | Log(x, y) | Remainder(x, y) -> x.Contains(func) || y.Contains(func)
+        | Addition(functions)
+        | Multiply(functions) ->
+            functions.Any(fun x -> x.Contains(func))
+        | Negate(x)
+        | Module(x)
+        | Sin(x)
+        | Cos(x)
+        | Tg(x)
+        | Ctg(x)
+        | Arcsin(x)
+        | Arccos(x)
+        | Arctg(x)
+        | Arcctg(x)
+        | Sec(x)
+        | Cosec(x)
+        | Cot(x) ->
+            x.Contains(func)
+        | Subtraction(x, y)
+        | Division(x, y)
+        | Power(x, y)
+        | Devirative(x, y)
+        | Log(x, y)
+        | Remainder(x, y) ->
+            x.Contains(func) || y.Contains(func)
         | _ -> false
+
+    /// <summary>
+    /// Функция для оптимизации операции над мультиарной операцией и эелементом, где операция для оптимизации и мультиарная операция одного приоритета. Используется в Enumerable.Aggregate
+    /// Пример оптимизации: (x + y + z) - x -> y + z или (x * y * z) / y -> x * z
+    /// </summary>
+    /// <param name="accum">Значение аккумулятора.</param>
+    /// <param name="elem">Значение из списка мультиарного опреатора.</param>
+    /// <param name="mainFunc">Опреация, представляющая собой мультиарный оператор.</param>
+    /// <param name="checkFunc">Операция над мультиарным оператором и элементом</param>
+    static member private _Optimize_0_Direct(accum : ScalarFunction * ScalarFunction, elem : ScalarFunction, mainFunc : ScalarFunction * ScalarFunction -> ScalarFunction, checkFunc : ScalarFunction * ScalarFunction -> ScalarFunction) : ScalarFunction * ScalarFunction =
+        match accum with
+        | (c, None) -> (mainFunc(c, elem), None)
+        | (c, b) ->
+            let calculated = checkFunc(elem, b).Calculate()
+            match ScalarStructNotEqual(checkFunc(elem, b), calculated).Calculate() with
+            | True ->
+                (mainFunc(c, calculated), None)
+            | _ ->
+                match c with
+                | None ->
+                    (elem, b)
+                | c ->
+                    (mainFunc(c, elem), b)
+
+    /// <summary>
+    /// Функция для оптимизации операции над эелементом и мультиарной операцией, где операция для оптимизации и мультиарная операция одного приоритета. Используется в Enumerable.Aggregate
+    /// Пример оптимизации: x - (x + y + z) -> -(y + z) или y / (x * y * z) -> 1 / (x * z)
+    /// </summary>
+    /// <param name="accum">Значение аккумулятора.</param>
+    /// <param name="elem">Значение из списка мультиарного опреатора.</param>
+    /// <param name="mainFunc">Опреация, представляющая собой мультиарный оператор.</param>
+    /// <param name="checkFunc">Операция над мультиарным оператором и элементом</param>
+    static member private _Optimize_0_Back(accum : ScalarFunction * ScalarFunction, elem : ScalarFunction, mainFunc : ScalarFunction * ScalarFunction -> ScalarFunction, checkFunc : ScalarFunction * ScalarFunction -> ScalarFunction) : ScalarFunction * ScalarFunction =
+        match accum with
+        | (c, None) ->
+            (mainFunc(c, elem), None)
+        | (c, b) ->
+            let calculated = checkFunc(b, elem).Calculate()
+            match ScalarStructNotEqual(checkFunc(b, elem), calculated).Calculate() with
+            | True ->
+                (checkFunc(c, calculated), None)
+            | _ ->
+                match c with
+                | None ->
+                    (elem, b)
+                | c ->
+                    (mainFunc(c, elem), b)
+
+    /// <summary>
+    /// Функция для оптимизации операции над мультиарной операцией и эелементом, где приоритет операции для оптимизации больше приоритета мультиарной операции на еденицу. Используется в Enumerable.Aggregate
+    /// Пример оптимизации: (x + y + z) / x -> 1 + (y + z) / x или (7 * y * z) ^ 2 -> 49 * (y * z) ^ 2
+    /// </summary>
+    /// <param name="accum">Значение аккумулятора.</param>
+    /// <param name="elem">Значение из списка мультиарного опреатора.</param>
+    /// <param name="mainFunc">Опреация, представляющая собой мультиарный оператор.</param>
+    /// <param name="checkFunc">Операция над мультиарным оператором и элементом</param>
+    static member private _Optimize_p1_Direct(accum : ScalarFunction * ScalarFunction * ScalarFunction, elem : ScalarFunction, mainFunc : ScalarFunction * ScalarFunction -> ScalarFunction, checkFunc : ScalarFunction * ScalarFunction -> ScalarFunction) : ScalarFunction * ScalarFunction * ScalarFunction =
+        match accum with
+        | (a, b, c) ->
+            let calculated = checkFunc(elem, c).Calculate()
+            match ScalarStructNotEqual(checkFunc(elem, c), calculated).Calculate() with
+            | True ->
+                (mainFunc(a, calculated), b, c)
+            | _ ->
+                (a, mainFunc(b, elem), c)
+
+    /// <summary>
+    /// Функция для оптимизации операции над мультиарной операцией и эелементом, где приоритет операции для оптимизации меньше приоритета мультиарной операции на еденицу. Используется в Enumerable.Aggregate
+    /// Пример оптимизации: x * y * z - x -> x * (y * z - 1)
+    /// </summary>
+    /// <param name="accum">Значение аккумулятора.</param>
+    /// <param name="elem">Значение из списка мультиарного опреатора.</param>
+    /// <param name="mainFunc">Опреация, представляющая собой мультиарный оператор.</param>
+    /// <param name="checkFunc">Операция над мультиарным оператором и элементом</param>
+    static member private _Optimize_m1_Direct(accum : ScalarFunction * ScalarFunction * ScalarFunction, elem : ScalarFunction, mainFunc : ScalarFunction * ScalarFunction -> ScalarFunction, checkFunc : ScalarFunction * ScalarFunction -> ScalarFunction) : ScalarFunction * ScalarFunction * ScalarFunction =
+        match accum with
+        | (a, b, c) ->
+            let calculated = checkFunc(elem, c).Calculate()
+            match ScalarStructNotEqual(checkFunc(elem, c), calculated) with
+            | True ->
+                (mainFunc(a, calculated), b, c)
+            | _ ->
+                (a, mainFunc(b, elem), c)
+
+    static member private _AccumulatorTransform_0_Direct(accum : ScalarFunction * ScalarFunction, checkFunc : ScalarFunction * ScalarFunction -> ScalarFunction) : ScalarFunction =
+        match accum with
+        | (a, None) ->
+            checkFunc(a, None).Calculate()
+        | (a, b) ->
+            checkFunc(a.Calculate(), b)
+
+    static member private _AccumulatorTransform_0_Back(accum : ScalarFunction * ScalarFunction, checkFunc : ScalarFunction * ScalarFunction -> ScalarFunction) : ScalarFunction =
+        match accum with
+        | (a, None) ->
+            checkFunc(None, a).Calculate()
+        | (a, b) ->
+            checkFunc(b, a.Calculate())
+
+    static member private _AccumulatorTransform_p1_Direct(accum : ScalarFunction * ScalarFunction * ScalarFunction, mainFunc : ScalarFunction * ScalarFunction -> ScalarFunction, checkFunc : ScalarFunction * ScalarFunction -> ScalarFunction) : ScalarFunction =
+        match accum with
+        | (None, b, c) ->
+            checkFunc(b.Calculate(), c)
+        | (a, None, c) ->
+            a.Calculate()
+        | (a, b, c) ->
+            mainFunc(a, checkFunc(b, c)).Calculate()
 
     static member private _1(x : ScalarFunction, list : list<ScalarFunction>, func : ScalarFunction * ScalarFunction -> ScalarFunction) =
         match x with
@@ -297,7 +474,14 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
         | x when x |<>| check -> x
         | _ -> ScalarFunction.None
 
+    /// <summary>
+    /// Оптимизация, упрощение и вычисление функции.
+    /// </summary>
     member this.Calculate() = this.Calculate(True)
+    /// <summary>
+    /// Оптимизация, упрощение и вычисление функции с учётом заданного условия.
+    /// </summary>
+    /// <param name="definition">Условие, налагаемое на функцию.</param>
     member this.Calculate(definition : BinaryFunction) =
         match this with
         | Constant(value) ->
@@ -308,9 +492,15 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
         | Variable(name) ->
             let x = ScalarFind(this, definition).Calculate()
             match x with
-            | ScalarAny(x, True) -> x
-            | ScalarEqual(x, y) -> y
-            | x -> DefinedVariable(name, x)
+            | ScalarFind(x0, ScalarAny(x1, True)) -> this
+            | ScalarFind(x0, ScalarEqual(x1, y)) ->
+                match (ScalarEqual(x0, x1) &&& ScalarEqual(x1, this)).Calculate() with
+                | True ->
+                    y
+                | _ ->
+                    this
+            | x ->
+                DefinedVariable(name, x)
         | Addition(functions) ->
             let functions = functions.OrderByDescending(fun x -> x.Priority)
             match functions.Count() with
@@ -320,23 +510,41 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
                 let x = functions.ElementAt(0).Calculate(definition)
                 let y = functions.ElementAt(1).Calculate(definition)
                 match (x, y) with
-                | (Constant(a), x) | (x, Constant(a)) when a = 0. -> x
-                | (Constant(a), Constant(b)) -> Constant(a + b)
                 | (x, y) when x = y -> Constant(2.) * x
+                | (Constant(0.), x) | (x, Constant(0.)) | (None, x) | (x, None) -> x
+                | (Constant(a), Constant(b)) -> Constant(a + b)
                 | (Negate(x), y) | (y, Negate(x)) ->
                     match y with
-                    | Negate(y) -> (-(x + y)).Calculate()
-                    | Subtraction(y, z) -> (y - (x + z)).Calculate()
-                    | _ -> (y - x).Calculate()
-                | (Addition(list0), x) | (x, Addition(list0)) ->
-                    match x with
-                    | Addition(list1) -> Addition(list0.Concat(list1)).Calculate()
-                    | Subtraction(x, y) -> (Addition(list0.Concat([|x|])) - y).Calculate()
-                    | _ -> Addition(list0.Concat([x])).Calculate()
-                | (Subtraction(sfun2, sfun3), ufun1) | (ufun1, Subtraction(sfun2, sfun3)) ->
-                    match ufun1 with
-                    | Subtraction (sfun4, sfun5) -> ((sfun2 + sfun4) - (sfun3 + sfun5)).Calculate()
-                    | _ -> ((ufun1 + sfun2).Calculate() - sfun3)
+                    | Negate(y) ->
+                        (-(x + y)).Calculate()
+                    | Subtraction(x1, y1) ->
+                        (x1 - (x + y1)).Calculate()
+                    | y ->
+                        (y - x).Calculate()
+                | (Subtraction(x0, y0), y) | (y, Subtraction(x0, y0)) ->
+                    match y with
+                    | Subtraction(x1, y1) ->
+                        ((x0 + x1) - (y0 + y1)).Calculate()
+                    | y ->
+                        ((x0 + y) - y0).Calculate()
+                | (Addition(list0), y) | (y, Addition(list0)) ->
+                    match y with
+                    | Addition(list1) ->
+                        Addition(list0.Concat(list1)).Calculate()
+                    | y ->
+                        Addition(list0.Concat([y])).Calculate()
+                | (Division(x0, y0), Division(x1, y1)) ->
+                    match ScalarEqual(y0, y1).Calculate() with
+                    | True ->
+                        ((x0 + x1) / y0).Calculate()
+                    | _ ->
+                        let check = x0 * y1 + x1 * y0
+                        let calculated = check.Calculate()
+                        match ScalarStructNotEqual(check, calculated) with
+                        | True ->
+                            (calculated / (y0 * y1)).Calculate()
+                        | _ ->
+                            x0 / y0 + x1 / y1
                 | (Multiply(list1), ufun1) | (ufun1, Multiply(list1)) ->
                     match ufun1 with
                     | Multiply(list2) ->
@@ -370,13 +578,6 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
                                 | _ -> Multiply(list3) + Constant(1.)
                             (multiplier * ufun1).Calculate()
                         | false -> Multiply(list1) + ufun1  //Без оптимизации, ибо выражение возвращается тоже самое, а сами функции были оптимизированы выше
-                | (Division(x0, y0), z) | (z, Division(x0, y0)) ->
-                    match z with
-                    | Division(x1, y1) ->
-                        match y0 = y1 with
-                        | true -> ((x0 + x1) / y0).Calculate()
-                        | false -> x0 / y0 + x1 / y1  //Без оптимизации, ибо выражение возвращается тоже самое, а сами функции были оптимизированы выше
-                    | _ -> x0 / y0 + z
                 | (Power(Sin(x), Constant(a)), Power(Cos(y), Constant(b))) | (Power(Cos(y), Constant(b)), Power(Sin(x), Constant(a))) when x = y && a = 2. && b = 2. -> Constant(1.)
                 | _ -> x + y
             | _ -> Addition(ScalarFunction._1(None, List.ofSeq(functions), ScalarFunction._CheckAddition))
@@ -385,54 +586,31 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
             let y = y.Calculate(definition)
             match (x, y) with
             | (x, y) when x = y -> Constant(0.)
+            | (Constant(0.), y) | (None, y) -> (-y).Calculate()
+            | (x, Constant(0.)) | (x, None) -> x
             | (Constant(a), Constant(b)) -> Constant(a - b)
-            | (Constant(a), y) when a = 0. -> (-y).Calculate()
-            | (x, Constant(a)) when a = -0. -> x
             | (Negate(x), Negate(y)) -> (y - x).Calculate()
             | (Negate(x), y) -> (-(x + y)).Calculate()
             | (x, Negate(y)) -> (x + y).Calculate()
             | (Division(x0, y0), Division(x1, y1)) ->
-                match y0 = y1 with
-                | true -> ((x0 - x1) / y0).Calculate()
-                | false -> x0 / y0 - x1 / y1
+                match ScalarEqual(y0, y1).Calculate() with
+                    | True ->
+                        ((x0 - x1) / y0).Calculate()
+                    | _ ->
+                        let check = x0 * y1 - x1 * y0
+                        let calculated = check.Calculate()
+                        match ScalarStructNotEqual(check, calculated) with
+                        | True ->
+                            (calculated / (y0 * y1)).Calculate()
+                        | _ ->
+                            x0 / y0 - x1 / y1
             | (Subtraction(x0, y0), Subtraction(x1, y1)) -> ((x0 + y1) - (x1 + y0)).Calculate()
             | (Subtraction(x, y), z) -> (x - (y + z)).Calculate()
             | (x, Subtraction(y, z)) -> ((x + z) - y).Calculate()
             | (Addition(list0), y) ->
-                let list0 = List.ofSeq(list0)
-                let rec f(x : list<ScalarFunction>, a : ScalarFunction) : ScalarFunction =
-                    match x with
-                    | [] -> -a
-                    | x :: z ->
-                        let check = x - y
-                        match check.Calculate() with
-                        | x when x |<>| check -> 
-                            match z with
-                            | [] -> x
-                            | z :: [] -> (z + x).Calculate()
-                            | z -> (Addition(z) + x).Calculate()
-                        | _ -> (x + f(z, a)).Calculate()
-                f(list0, y)
+                list0.Aggregate((None, y), (fun x y -> ScalarFunction._Optimize_0_Direct(x, y, (fun (x, y) -> x + y), fun (x, y)-> x - y)), (fun x -> ScalarFunction._AccumulatorTransform_0_Direct(x, fun (x, y) -> x - y)))
             | (x, Addition(list0)) ->
-                let list0 = List.ofSeq(list0)
-                let rec f(x : list<ScalarFunction>, a : ScalarFunction) : ScalarFunction =
-                    match x with
-                    | [] -> a
-                    | x :: y ->
-                        let check = a - x
-                        match check.Calculate() with
-                        | x when x |<>| check -> 
-                            match y with
-                            | [] -> x
-                            | y :: [] -> (x - y).Calculate()
-                            | y -> (x - Addition(y)).Calculate()
-                        | _ ->
-                            let check1 = a - Addition(y).Calculate()
-                            let check2 = f(y, a)
-                            match check2.Calculate() with
-                            | z when z |<>| check1 -> (z - x).Calculate()
-                            | _ -> a - Addition(x :: y).Calculate()
-                f(list0, x)
+                list0.Aggregate((None, x), (fun x y -> ScalarFunction._Optimize_0_Back(x, y, (fun (x, y) -> x + y), fun (x, y)-> x - y)), (fun x -> ScalarFunction._AccumulatorTransform_0_Back(x, fun (x, y) -> x - y)))
             | _ -> x - y
         | Multiply(functions) ->
             let functions = functions.OrderByDescending(fun x -> x.Priority)
@@ -443,19 +621,24 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
                 let fun0 = functions.ElementAt(0).Calculate(definition)
                 let fun1 = functions.ElementAt(1).Calculate(definition)
                 match (fun0, fun1) with
-                | _ when fun0 = Constant(0.) || fun1 = Constant(0.) -> Constant(0.)
-                | _ when fun0 = Constant(1.) -> fun1
-                | _ when fun1 = Constant(1.) -> fun0
-                | _ when fun0 = Constant(-1.) -> (-fun1).Calculate()
-                | _ when fun1 = Constant(-1.) -> (-fun0).Calculate()
+                | (x, y) when x = y -> Power(x, Constant(2.))
+                | (Constant(0.), _) | (_, Constant(0.)) -> Constant(0.)
+                | (Constant(1.), x) | (x, Constant(1.)) | (None, x) | (x, None) -> x
+                | (Constant(-1.), x) | (x, Constant(-1.)) -> (-x).Calculate()
                 | (Constant(value0), Constant(value1)) -> Constant(value0 * value1)
-                | (Negate(x), Negate(y)) -> (x*y).Calculate()
-                | _ when fun0 = fun1 -> Power(fun0, Constant(2.))
+                | (Negate(x), y) | (y, Negate(x)) ->
+                    match y with
+                    | Negate(y) -> (x * y).Calculate()
+                    | y -> (-(x * y)).Calculate()
                 | (Multiply(list0), ufun1) | (ufun1, Multiply(list0)) ->
                     match ufun1 with
                     | Multiply(list1) -> Multiply(list0.Concat(list1)).Calculate()
                     | Division(left, rigth) -> (Multiply(list0.Concat([|left|])) / rigth).Calculate()
                     | _ -> Multiply(list0.Concat([|ufun1|])).Calculate()
+                | (Division(left0, rigth0), ufun1) | (ufun1, Division(left0, rigth0)) ->
+                    match ufun1 with
+                    | Division(left1, rigth1) -> ((left0 * rigth1) / (left1 * rigth0)).Calculate()
+                    | _ -> ((left0 * ufun1) / rigth0).Calculate()
                 | (Power(left0, rigth0), ufun1) | (ufun1, Power(left0, rigth0)) ->
                     match ufun1 with
                     | _ when left0 = ufun1 -> (left0 ** (rigth0 + Constant(1.))).Calculate()
@@ -488,10 +671,6 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
                                 | _ -> (result * Multiply(functions3) ** rigth1).Calculate()
                         | _ -> fun0 * fun1
                     | _ -> fun0 * fun1
-                | (Division(left0, rigth0), ufun1) | (ufun1, Division(left0, rigth0)) ->
-                    match ufun1 with
-                    | Division(left1, rigth1) -> ((left0 * rigth1) / (left1 * rigth0)).Calculate()
-                    | _ -> ((left0 * ufun1) / rigth0).Calculate()
                 | (Tg(x), Ctg(y)) | (Ctg(x), Tg(y)) when x = y -> Constant(1.)
                 | _ -> fun0 * fun1
             | _ ->
@@ -512,123 +691,68 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
             let fun0 = fun0.Calculate(definition)
             let fun1 = fun1.Calculate(definition)
             match (fun0, fun1) with
-            | (fun0, fun1) when fun0 = fun1 -> Constant(1.)
-            | (Constant(a), y) when a = 0. -> Constant(0.)
-            | (_, Constant(b)) when b = 0. -> ComputationError(this, ComputationErrors.DivisionByZero)
-            | (x, Constant(b)) when b = 1. -> x
+            | (x, y) when x = y -> Constant(1.)
+            | (Constant(0.), x) -> Constant(0.)
+            | (x, Constant(0.)) -> ComputationError(this, ComputationErrors.DivisionByZero)
+            | (x, Constant(1.)) | (x, None) -> x
+            | (Constant(1.), y) | (None, y) -> Constant(1.) / y
+            | (x, Constant(-1.)) -> (-x).Calculate()
             | (Constant(a), Constant(b)) -> Constant(a / b)
+            | (Multiply(list0), y) ->
+                list0.Aggregate((None, y), (fun x y -> ScalarFunction._Optimize_0_Direct(x, y, (fun (x, y) -> x * y), fun (x, y)-> x / y)), (fun x -> ScalarFunction._AccumulatorTransform_0_Direct(x, fun (x, y) -> x / y)))
+            | (x, Multiply(list0)) ->
+                list0.Aggregate((None, x), (fun x y -> ScalarFunction._Optimize_0_Back(x, y, (fun (x, y) -> x * y), fun (x, y)-> x / y)), (fun x -> ScalarFunction._AccumulatorTransform_0_Back(x, fun (x, y) -> x / y)))
             | (Power(x0, y0), Power(x1, y1)) ->
                 match (ScalarEqual(x0, x1).Calculate(), ScalarEqual(y0, y1).Calculate()) with
                 | (True, _) -> (x0 ** (y0 - y1)).Calculate()
                 | (_, True) -> ((x0 / x1) ** y0).Calculate()
                 | (_, _) ->
-                    match ScalarStructNotEqual(x0 / x1, (x0 / x1).Calculate()) with
+                    let calculated = (x0 / x1).Calculate()
+                    match ScalarStructNotEqual(x0 / x1, calculated).Calculate() with
                     | True ->
                         let max = Maximum([y0; y1])
-                        ((x0 / x1) ** max * x0 ** (max - y0) / x1 ** (max - y1)).Calculate()
-                    | _ -> x0 ** y0 / x1 ** y1
+                        (calculated ** max * x0 ** (max - y0) / x1 ** (max - y1)).Calculate()
+                    | _ ->
+                        x0 ** y0 / x1 ** y1
             | (Power(x0, y0), y) ->
-                match ScalarStructNotEqual(x0 / y, (x0 / y).Calculate()) with
-                | True -> ((x0 / y) * x0 ** (y0 - Constant(1.))).Calculate()
-                | _ -> x0 ** y0 / y
+                let calculated = (x0 / y).Calculate()
+                match ScalarStructNotEqual(x0 / y, calculated).Calculate() with
+                | True ->
+                    (calculated * x0 ** (y0 - Constant(1.))).Calculate()
+                | _ ->
+                    x0 ** y0 / y
             | (x, Power(x1, y1)) ->
-                match ScalarStructNotEqual(x / x1, (x / x1).Calculate()) with
-                | True -> ((x / x1) * x1 ** (y1 - Constant(1.))).Calculate()
-                | _ -> x / x1 ** y1
-            | (Addition(list0), fun1) ->
-                let mutable free_part = List<ScalarFunction>()
-                let mutable other_part = List<ScalarFunction>()
-                for func in list0 do
-                    let check = func / fun1
-                    match check.Calculate() with
-                    | x when x |<>| check -> free_part.Add(x)
-                    | _ -> other_part.Add(func)
-                match (free_part.Count, other_part.Count) with
-                | (0, _) -> Addition(other_part) / fun1
-                | (1, _) -> free_part.ElementAt(0) + Addition(other_part) / fun1
-                | (_, 1) -> Addition(free_part) + other_part.ElementAt(0) / fun1
-                | (_, 0) -> Addition(free_part)
-                | (_, _) -> Addition(free_part) + Addition(other_part) / fun1
-            | (Subtraction(fun00, fun01), fun1) ->
-                let check0 = fun00 / fun1
-                let check1 = fun01 / fun1
-                match (check0.Calculate(), check1.Calculate()) with
-                | (fun10, fun11) when fun10 = check0 && fun11 = check1 -> (fun00 - fun01) / fun1
-                | (fun10, fun11) -> (fun10 - fun11).Calculate()
-            | (Multiply(list0), fun1) ->
-                match fun1 with
-                | Multiply(list1) ->
-                    let mutable list0 = List(list0)
-                    let mutable list1 = List(list1)
-                    let mutable i0 = 0
-                    while i0 < list0.Count do
-                        let mutable accum = list0.ElementAt(i0)
-                        let mutable i1 = 0
-                        let mutable changed = false
-                        while i1 < list1.Count do
-                            let check = accum / list1.ElementAt(i1)
-                            match check.Calculate() with
-                            | x when x |<>| check ->
-                                list1.Remove(list1.ElementAt(i1)) |> ignore
-                                accum <- x
-                                changed <- true
-                            | _ -> i1 <- i1 + 1
-                        match changed with
-                        | true ->
-                            list0.Remove(list0.ElementAt(i0)) |> ignore
-                            list0.Add(accum)
-                        | false ->
-                            i0 <- i0 + 1
-                    match (list0.Count, list1.Count) with
-                    | (0, 1) -> (list1.ElementAt(0) ** Constant(-1.)).Calculate()
-                    | (0, _) -> (Multiply(list1) ** Constant(-1.)).Calculate()
-                    | (1, 0) -> list0.ElementAt(0)
-                    | (1, 1) -> (list0.ElementAt(0) / list1.ElementAt(0)).Calculate()
-                    | (1, _) -> (list0.ElementAt(0) / Multiply(list1)).Calculate()
-                    | (_, 1) -> (Multiply(list0) / list1.ElementAt(0)).Calculate()
-                    | (_, 0) -> Multiply(list0).Calculate()
-                    | (_, _) -> (Multiply(list0) / Multiply(list1)).Calculate()
-                | Power(fun10, fun11) -> Multiply(list0.Concat([|fun10 ** -fun11|])).Calculate()
-                | x ->
-                    let mutable list1 = []
-                    let mutable en = false
-                    for y in list0 do
-                        let check = y / x
-                        match check.Calculate() with
-                        | z when z |<>| check && not(en) ->
-                            en <- true
-                            list1 <- list1 @ z :: []
-                        | _ -> list1 <- list1 @ y :: []
-                    match en with
-                    | true -> Multiply(list1).Calculate()
-                    | false -> Multiply(list1) / x
-            | (x, Multiply(list0)) ->
-                match x with
-                | x ->
-                    let mutable list1 = []
-                    let mutable val0 = ScalarFunction.None
-                    let mutable en = false
-                    for y in list0 do
-                        let check = x / y
-                        match check.Calculate() with
-                        | z when z |<>| check && not(en) ->
-                            en <- true
-                            val0 <- z 
-                        | _ -> list1 <- list1 @ y :: []
-                    match en with
-                    | true -> (val0 / Multiply(list1)).Calculate()
-                    | false -> x / Multiply(list1)
-            | (Division(x, y), Division(z, t)) -> ((x*t) / (y*z)).Calculate()
-            | (x, Division(y, z)) -> ((x * z) / y).Calculate()
+                match ScalarEqual(x, x1).Calculate() with
+                | True ->
+                    (Constant(1.) / Power(x1, y1 - Constant(1.))).Calculate()
+                | _ ->
+                    let calculated = (x / x1).Calculate()
+                    match ScalarStructNotEqual(x / x1, calculated).Calculate() with
+                    | True ->
+                        (calculated / x1 ** (y1 - Constant(1.))).Calculate()
+                    | _ ->
+                        x / x1 ** y1
+            | (Addition(list0), y) ->
+                list0.Aggregate((None, None, y), (fun x y -> ScalarFunction._Optimize_p1_Direct(x, y, (fun (x, y) -> x + y), fun (x, y)-> x / y)), (fun x -> ScalarFunction._AccumulatorTransform_p1_Direct(x, (fun (x, y) -> x + y), fun (x, y) -> x / y)))
+            | (Subtraction(x, y), z) ->
+                let check0 = (x / z).Calculate()
+                let check1 = (y / z).Calculate()
+                match (ScalarStructNotEqual(x / z, check0).Calculate(), ScalarStructNotEqual(y / z, check1).Calculate()) with
+                | (True, True) -> (check0 - check1).Calculate()
+                | (True, _) -> (check0 - y / z).Calculate()
+                | (_, True) -> (x / z - check1).Calculate()
+                | (_, _) -> (x - y) / z
+            | (Division(x, y), Division(z, t)) -> ((x * t) / (y * z)).Calculate()
             | (Division(x, y), z) -> (x / (y * z)).Calculate()
+            | (x, Division(y, z)) -> ((x * z) / y).Calculate()
             | _ -> fun0 / fun1
         | Negate(func) ->
             let func = func.Calculate(definition)
             match func with
             | Infinity -> -Infinity
-            | Negate(func) -> func
-            | Constant(value) -> Constant(-value)
-            | Subtraction(fun0, fun1) -> fun1 - fun0
+            | Negate(x) -> x
+            | Constant(a) -> Constant(-a)
+            | Subtraction(x, y) -> y - x
             | x -> Negate(x)
         | Power(x, y) ->
             let x = x.Calculate(definition)
@@ -642,32 +766,23 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
                 | (a, -1.) -> Constant(1. / a)
                 | (a, b) when a < 0. && abs(b) < 1. && b % 2. = 0. -> (Constant(-a ** b) * ImaginaryOne ** Constant(b * 2.)).Calculate()
                 | (a, b) -> Constant(a ** b)
-            | (ImaginaryOne _, Constant(b)) when abs(b) >= 2. -> (Constant(-1.) * ImaginaryOne ** Constant((double(sign(b)) * (abs(b) - 1.)))).Calculate()
-            | (_, Constant(b)) when b = 0. -> Constant(1.)
-            | (x, Constant(b)) when b = 1. -> x
-            | (Exponent, Ln(y)) -> y
-            | (Constant(a), Lg(y)) when a = 10. -> y
-            | (x, Log(y, z)) when x = y -> z
-            | (Power(x, y), z) -> (x ** (y * z)).Calculate()
-            | _ -> x ** y
-        | Ln(func) ->
-            let func = func.Calculate(definition)
-            match func with
-            | Constant(value) -> Constant(Math.Log(value))
-            | Exponent -> Constant(1.)
-            | Power(left, rigth) -> rigth * Ln(left) //А это может оптимизироваться??
-            | _ -> Ln(func)
-        | Lg(func) ->
-            let func = func.Calculate(definition)
-            match func with
-            | Constant(value) -> Constant(Math.Log10(value))
-            | Power(left, rigth) -> rigth * Lg(left) //А это может оптимизироваться??
-            | _ -> Lg(func)
+            | (ImaginaryOne, Constant(b)) when abs(b) >= 2. -> (Constant(-1.) * ImaginaryOne ** Constant((double(sign(b)) * (abs(b) - 1.)))).Calculate()
+            | (_, Constant(0.)) ->
+                Constant(1.)
+            | (x, Constant(1.)) ->
+                x
+            | (x, Log(y, z)) when x = y ->
+                z
+            | (Power(x, y), z) ->
+                (x ** (y * z)).Calculate()
+            | (x, y) when ScalarLessThan(y, Constant(0.)) = True ->
+                (Constant(1.) / Power(x, -y)).Calculate()
+            | (x, y) -> x ** y
         | Sin(func) ->
             let func = func.Calculate(definition)
             match func with
             | Pi -> Constant(0.)
-            | Multiply(list0) when list0.Contains(Pi) && BinaryFunction.op_True(Multiply(list0.SetExcept([Pi])) |+| WholeNumbers) -> Constant(0.)
+            | Multiply(list0) when list0.Contains(Pi) && SetScalarIsIncluded(Multiply(list0.SetExcept([Pi])), WholeNumbers) = True -> Constant(0.)
             | Constant(value) -> Constant(Math.Sin(value))
             | Arcsin(func) -> func
             | _ -> Sin(func)
@@ -683,52 +798,77 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
             match var with
             | Variable _ ->
                 match func with
-                | Constant _ | DefinedVariable _ | VectorElementsCount _ -> Constant(0.)
+                | Constant _
+                | VectorElementsCount _ ->
+                    Constant(0.)
                 | Variable _ ->
                     match func = var with
                     | true -> Constant(1.)
                     | false -> Constant(0.)
-                | Sin(x) -> (Devirative(x, var) * -Cos(x)).Calculate()
-                | Cos(x) -> (Devirative(x, var) * Sin(x)).Calculate()
-                | Power(x, y) -> (y * Devirative(x, var) * (x ** (y - Constant(1.))) + Devirative(y, var) * (x ** y) * Ln(x)).Calculate()
-                | Addition(list0) -> Addition(list0.Select(fun x -> Devirative(x, var))).Calculate()
-                | _ -> this
-            | _ -> ComputationError(this, ComputationErrors.DevirativeByNotVariable)
+                | Sin(x) ->
+                    (Devirative(x, var) * -Cos(x)).Calculate()
+                | Cos(x) ->
+                    (Devirative(x, var) * Sin(x)).Calculate()
+                | Power(x, y) ->
+                    (y * Devirative(x, var) * (x ** (y - Constant(1.))) + Devirative(y, var) * (x ** y) * Log(Exponent, x)).Calculate()
+                | Addition(list0) ->
+                    Addition(list0.Select(fun x -> Devirative(x, var))).Calculate()
+                | _ ->
+                    this
+            | _ ->
+                ComputationError(this, ComputationErrors.DevirativeByNotVariable)
         | Confirmation(x) ->
             let x = x.Calculate(definition)
             match x with
-            | Infinity -> +Infinity
-            | x -> x
+            | Infinity ->
+                +Infinity
+            | x ->
+                x
         | Module(x) ->
             let x = x.Calculate(definition)
             match x with
-            | Constant(a) -> Constant(abs(a))
-            | x when BinaryFunction.op_True(ScalarFunction.(>=)(x, Constant(0.))) -> x
-            | x when BinaryFunction.op_True(ScalarFunction.(<)(x, Constant(0.))) -> (-x).Calculate()
-            | x -> Module(x)
+            | Constant(a) ->
+                Constant(abs(a))
+            | x when BinaryFunction.op_True(ScalarFunction.(>=)(x, Constant(0.)))
+                -> x
+            | x when BinaryFunction.op_True(ScalarFunction.(<)(x, Constant(0.)))
+                -> (-x).Calculate()
+            | x ->
+                Module(x)
         | Remainder(x, y) ->
             let x = x.Calculate(definition)
             let y = y.Calculate(definition)
             match (x, y) with
-            | (x, y) when x = y -> Constant(0.)
-            | (x, y) when x < y -> x
-            | (Constant(a), Constant(b)) -> Constant(a % b)
-            | (x, y) -> Remainder(x, y)
+            | (x, y) when x = y ->
+                Constant(0.)
+            | (x, y) when x < y ->
+                x
+            | (Constant(a), Constant(b)) ->
+                Constant(a % b)
+            | (x, y) ->
+                Remainder(x, y)
         | MatrixRowsCount(x) ->
             let x = x.Calculate(definition)
             match x with
-            | Matrix(matrix0) -> Constant(double(matrix0.RowsCount))
-            | x -> MatrixRowsCount(x)
+            | Matrix(matrix0) ->
+                Constant(double(matrix0.RowsCount))
+            | x ->
+                MatrixRowsCount(x)
         | MatrixColumnsCount(x) ->
             let x = x.Calculate(definition)
             match x with
-            | Matrix(matrix0) -> Constant(double(matrix0.ColumnsCount))
-            | x -> MatrixColumnsCount(x)
+            | Matrix(matrix0) ->
+                Constant(double(matrix0.ColumnsCount))
+            | x ->
+                MatrixColumnsCount(x)
         | VectorElementsCount(x) ->
             let x = x.Calculate(definition)
             match x with
-            | Vector(list0) | ColumnVector(list0) -> Constant(double(list0.Count()))
-            | x -> VectorElementsCount(x)
+            | Vector(list0)
+            | ColumnVector(list0) ->
+                Constant(double(list0.Count()))
+            | x ->
+                VectorElementsCount(x)
         | VectorMultiply(x, y) ->
             let x = x.Calculate(definition)
             let y = y.Calculate(definition)
@@ -766,30 +906,51 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
             | _ -> VectorElementAt(x, y)
         | Maximum(functions) ->
             match functions.Count() with
-            | 0 -> Constant(0.)
-            | 1 -> functions.ElementAt(0).Calculate(definition)
+            | 0 ->
+                Constant(0.)
+            | 1 ->
+                functions.ElementAt(0).Calculate(definition)
             | 2 ->
                 let x = functions.ElementAt(0).Calculate(definition)
                 let y = functions.ElementAt(1).Calculate(definition)
                 match (ScalarGreaterThan(x, y) ||| ScalarGreaterThanOrEqual(x, y) ||| ScalarEqual(x, y)).Calculate() with
-                | True -> x
+                | True ->
+                    x
                 | _ ->
                     match ScalarLessThan(x, y) ||| ScalarLessThanOrEqual(x, y) with
-                    | True -> y
-                    | _ -> Maximum([x; y])
-        | _ -> this
+                    | True ->
+                        y
+                    | _ ->
+                        Maximum([x; y])
+            | _ ->
+                Maximum(functions)
+        | _ ->
+            this
 
     override this.ToString() =
         let mutable result = StringBuilder()
         match this with
-        | Constant _ | Variable _ | None _ | ImaginaryOne | Pi | Exponent -> result <- result.Append(this.Identificator.[0])
-        | Addition(functions) | Multiply(functions) ->
+        | Constant _
+        | Variable _
+        | None
+        | ImaginaryOne
+        | Pi
+        | GoldenNumber
+        | SilverNumber
+        | EulerConstant
+        | PlasticNumber
+        | Exponent ->
+            result <- result.Append(this.Identificator.[0])
+        | Addition(functions)
+        | Multiply(functions) ->
             for i0 = 0 to functions.Count() - 1 do
                 if functions.ElementAt(i0).Priority <= this.Priority then result <- result.Append('(')
                 result <- result.Append(functions.ElementAt(i0))
                 if functions.ElementAt(i0).Priority <= this.Priority then result <- result.Append(')')
                 if i0 + 1 <> functions.Count() then result <- result.Append(this.Identificator.[0])
-        | Subtraction(x, y) | Division(x, y) | Remainder(x, y) ->
+        | Subtraction(x, y)
+        | Division(x, y)
+        | Remainder(x, y) ->
             if x.Priority <= this.Priority then result <- result.Append('(')
             result <- result.Append(x)
             if x.Priority <= this.Priority then result <- result.Append(')')
@@ -799,12 +960,18 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
             if y.Priority <= this.Priority then result <- result.Append(')')
         | Power(x, y) ->
             match y with
-            | Constant(a) when a = 0.5 || a = 0.333333333333333 || a = 0.25 ->
-                match a with
-                | 0.5 -> result <- result.Append(this.Identificator.[1])
-                | 0.333333333333333 -> result <- result.Append(this.Identificator.[2])
-                | 0.25 -> result <- result.Append(this.Identificator.[3])
-                | _ -> ()
+            | Constant(0.5) ->
+                result <- result.Append(this.Identificator.[1])
+                if x.Priority < this.Priority then result <- result.Append('(')
+                result <- result.Append(x)
+                if x.Priority < this.Priority then result <- result.Append(')')
+            | Constant(0.333333333333333) ->
+                result <- result.Append(this.Identificator.[2])
+                if x.Priority < this.Priority then result <- result.Append('(')
+                result <- result.Append(x)
+                if x.Priority < this.Priority then result <- result.Append(')')
+            | Constant(0.25) ->
+                result <- result.Append(this.Identificator.[3])
                 if x.Priority < this.Priority then result <- result.Append('(')
                 result <- result.Append(x)
                 if x.Priority < this.Priority then result <- result.Append(')')
@@ -816,15 +983,32 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
                 if y.Priority < this.Priority then result <- result.Append('(')
                 result <- result.Append(y)
                 if y.Priority < this.Priority then result <- result.Append(')')
-        | Negate(x) | Sin(x) | Cos(x) | Tg(x) | Ctg(x) | Ln(x) | Lg(x) | Arcsin(x) | Arccos(x) | Arctg(x) | Arcctg(x) | Sec(x) | Cosec(x) | Cot(x) ->
+        | Negate(x)
+        | Sin(x)
+        | Cos(x)
+        | Tg(x)
+        | Ctg(x)
+        | Arcsin(x)
+        | Arccos(x)
+        | Arctg(x)
+        | Arcctg(x)
+        | Sec(x)
+        | Cosec(x)
+        | Cot(x) ->
             result <- result.Append(this.Identificator.[0])
             if x.Priority < this.Priority then result <- result.Append('(')
             result <- result.Append(x)
             if x.Priority < this.Priority then result <- result.Append(')')
-        | Module(x) | IntegerPart(x) | Floor(x) | Ceiling(x) ->
+        | Module(x)
+        | IntegerPart(x) ->
             result <- result.Append(this.Identificator.[0])
             result <- result.Append(x)
             result <- result.Append(this.Identificator.[0])
+        | Floor(x)
+        | Ceiling(x) ->
+            result <- result.Append(this.Identificator.[0])
+            result <- result.Append(x)
+            result <- result.Append(this.Identificator.[1])
         | Devirative(x, y) ->
             if x.Priority < this.Priority then result <- result.Append('(')
             result <- result.Append(x)
@@ -832,12 +1016,24 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
             result <- result.Append(this.Identificator.[0])
             result <- result.Append(y)
         | Log(x, y) ->
-            result <- result.Append(this.Identificator.[0])
-            result <- result.Append('(')
-            result <- result.Append(x)
-            result <- result.Append(',')
-            result <- result.Append(y)
-            result <- result.Append(')')
+            match x with
+            | Exponent ->
+                result <- result.Append(this.Identificator.[1])
+                result <- result.Append('(')
+                result <- result.Append(y)
+                result <- result.Append(')')
+            | Constant(10.) ->
+                result <- result.Append(this.Identificator.[2])
+                result <- result.Append('(')
+                result <- result.Append(y)
+                result <- result.Append(')')
+            | x ->
+                result <- result.Append(this.Identificator.[0])
+                result <- result.Append('(')
+                result <- result.Append(x)
+                result <- result.Append(',')
+                result <- result.Append(y)
+                result <- result.Append(')')
         | ComputationError(func, error) ->
             result <- result.Append("В выражении ")
             result <- result.Append(func)
@@ -877,29 +1073,25 @@ and [<CustomEquality>] [<NoComparison>] public VectorFunction =
             | _ -> false
         | _ -> false
     
-    static member inline (~-)   (x : VectorFunction) : VectorFunction = Negate(x)
-    static member inline (~~)   (x : VectorFunction) : VectorFunction = Transposition(x)
-    static member inline (+)    (x : VectorFunction, y : VectorFunction) : VectorFunction = Addition([x; y])
-    static member inline (-)    (x : VectorFunction, y : VectorFunction) : VectorFunction = Subtraction(x, y)
-    static member inline (*)    (x : VectorFunction, y : VectorFunction) : MatrixFunction = MatrixFunction.VectorMultiply(x, y)
-    static member inline (|*)   (x : VectorFunction, y : VectorFunction) : ScalarFunction = ScalarFunction.VectorMultiply(x, y)
-    static member inline (*)    (x : VectorFunction, y : ScalarFunction) : VectorFunction = VectorFunction.ScalarMultiply(x, y)
-    static member inline (*)    (x : ScalarFunction, y : VectorFunction) : VectorFunction = VectorFunction.ScalarMultiply(y, x)
-    static member inline (*)    (x : VectorFunction, y : MatrixFunction) : VectorFunction = MatrixLeftMultiply(x, y)
-    static member inline (*)    (x : MatrixFunction, y : VectorFunction) : VectorFunction = MatrixRightMultiply(x, y)
-    static member inline (.*)    (x : VectorFunction, y : VectorFunction) : VectorFunction = BitwiseMultiply(x, y)
+    static member inline (~-) (x : VectorFunction) : VectorFunction = Negate(x)
+    static member inline (~~) (x : VectorFunction) : VectorFunction = Transposition(x)
+    static member inline (+) (x : VectorFunction, y : VectorFunction) : VectorFunction = Addition([x; y])
+    static member inline (-) (x : VectorFunction, y : VectorFunction) : VectorFunction = Subtraction(x, y)
+    static member inline (*) (x : VectorFunction, y : VectorFunction) : MatrixFunction = MatrixFunction.VectorMultiply(x, y)
+    static member inline (|*) (x : VectorFunction, y : VectorFunction) : ScalarFunction = ScalarFunction.VectorMultiply(x, y)
+    static member inline (*) (x : VectorFunction, y : ScalarFunction) : VectorFunction = VectorFunction.ScalarMultiply(x, y)
+    static member inline (*) (x : ScalarFunction, y : VectorFunction) : VectorFunction = VectorFunction.ScalarMultiply(y, x)
+    static member inline (*) (x : VectorFunction, y : MatrixFunction) : VectorFunction = MatrixLeftMultiply(x, y)
+    static member inline (*) (x : MatrixFunction, y : VectorFunction) : VectorFunction = MatrixRightMultiply(x, y)
+    static member inline (.*) (x : VectorFunction, y : VectorFunction) : VectorFunction = BitwiseMultiply(x, y)
     static member inline ( ** ) (x : VectorFunction, y : ScalarFunction) : ScalarFunction = ScalarFunction.VectorPower(x, y)
-    static member inline (/)    (x : VectorFunction, y : ScalarFunction) : VectorFunction = ScalarDivision(x, y)
-    static member inline (./)    (x : VectorFunction, y : VectorFunction) : VectorFunction = BitwiseDivision(x, y)
-    static member inline (@)    (x : VectorFunction, y : VectorFunction) : VectorFunction = Concat(x, y)
-    static member inline (|=|)  (x : VectorFunction, y : VectorFunction) : bool = BinaryFunction.op_True(BinaryFunction.VectorStructEqual(x, y))
+    static member inline (/) (x : VectorFunction, y : ScalarFunction) : VectorFunction = ScalarDivision(x, y)
+    static member inline (./) (x : VectorFunction, y : VectorFunction) : VectorFunction = BitwiseDivision(x, y)
+    static member inline (@) (x : VectorFunction, y : VectorFunction) : VectorFunction = Concat(x, y)
+    static member inline (|=|) (x : VectorFunction, y : VectorFunction) : bool = BinaryFunction.op_True(BinaryFunction.VectorStructEqual(x, y))
     static member inline (|<>|) (x : VectorFunction, y : VectorFunction) : bool = BinaryFunction.op_False(BinaryFunction.VectorStructNotEqual(x, y))
-    static member inline (<>)   (x : VectorFunction, y : VectorFunction) : BinaryFunction = BinaryFunction.VectorNotEqual(x, y)
-    static member inline (=)    (x : VectorFunction, y : VectorFunction) : BinaryFunction = BinaryFunction.VectorEqual(x, y)
-    static member inline (>)    (x : VectorFunction, y : VectorFunction) : BinaryFunction = BinaryFunction.VectorGreaterThan(x, y)
-    static member inline (<)    (x : VectorFunction, y : VectorFunction) : BinaryFunction = BinaryFunction.VectorLessThan(x, y)
-    static member inline (>=)   (x : VectorFunction, y : VectorFunction) : BinaryFunction = BinaryFunction.VectorGreaterThanOrEqual(x, y)
-    static member inline (<=)   (x : VectorFunction, y : VectorFunction) : BinaryFunction = BinaryFunction.VectorLessThanOrEqual(x, y)
+    static member inline (<>) (x : VectorFunction, y : VectorFunction) : BinaryFunction = BinaryFunction.VectorNotEqual(x, y)
+    static member inline (=) (x : VectorFunction, y : VectorFunction) : BinaryFunction = BinaryFunction.VectorEqual(x, y)
     static member inline op_OnesComplement (x : VectorFunction) : VectorFunction = Transposition(x)
 
     member this.Item
@@ -933,7 +1125,7 @@ and [<CustomEquality>] [<NoComparison>] public VectorFunction =
             let y = y.Calculate(definition)
             let z = z.Calculate(definition)
             match y with
-            | y when BinaryFunction.op_True(y |+| NaturalNumbersWithZero) && y < VectorElementsCount(x) ->
+            | y when SetScalarIsIncluded(y, NaturalNumbersWithZero) = True && y < VectorElementsCount(x) ->
                 match (x, y) with
                 | (Vector(list0), Constant(a)) ->
                     let list0 = List(list0)
@@ -1217,32 +1409,10 @@ and [<CustomEquality>] [<NoComparison>] public SetFunction =
     static member (|||) (x : SetFunction, y : SetFunction) : SetFunction = Union([x; y])
     static member (-) (x : SetFunction, y : SetFunction) : SetFunction = Difference(x, y)
     static member (*) (x : SetFunction, y : SetFunction) : SetFunction = None
-    static member (>) (x : SetFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetGreaterThan(x, y)
-    static member (>=) (x : SetFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetGreaterThanOrEqual(x, y)
-    static member (<) (x : SetFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetLessThan(x, y)
-    static member (<=) (x : SetFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetLessThanOrEqual(x, y)
     static member (=) (x : SetFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetEqual(x, y)
     static member (<>) (x : SetFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetNotEqual(x, y)
     static member (|=|) (x : SetFunction, y : SetFunction) : bool = BinaryFunction.op_True(BinaryFunction.SetStructEqual(x, y))
     static member (|<>|) (x : SetFunction, y : SetFunction) : bool = BinaryFunction.op_False(BinaryFunction.SetStructNotEqual(x, y))
-    static member (|+|) (x : ScalarFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetScalarIsIncluded(x, y)
-    static member (|+|) (x : SetFunction, y : ScalarFunction) : BinaryFunction = BinaryFunction.SetScalarIsIncluded(y, x)
-    static member (|-|) (x : ScalarFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetScalarIsNotIncluded(x, y)
-    static member (|-|) (x : SetFunction, y : ScalarFunction) : BinaryFunction = BinaryFunction.SetScalarIsNotIncluded(y, x)
-    static member (|+|) (x : VectorFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetVectorIsIncluded(x, y)
-    static member (|+|) (x : SetFunction, y : VectorFunction) : BinaryFunction = BinaryFunction.SetVectorIsIncluded(y, x)
-    static member (|-|) (x : VectorFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetVectorIsNotIncluded(x, y)
-    static member (|-|) (x : SetFunction, y : VectorFunction) : BinaryFunction = BinaryFunction.SetVectorIsNotIncluded(y, x)
-    static member (|+|) (x : MatrixFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetMatrixIsIncluded(x, y)
-    static member (|+|) (x : SetFunction, y : MatrixFunction) : BinaryFunction = BinaryFunction.SetMatrixIsIncluded(y, x)
-    static member (|-|) (x : MatrixFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetMatrixIsNotIncluded(x, y)
-    static member (|-|) (x : SetFunction, y : MatrixFunction) : BinaryFunction = BinaryFunction.SetMatrixIsNotIncluded(y, x)
-    static member (|+|) (x : BinaryFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetBinaryIsIncluded(x, y)
-    static member (|+|) (x : SetFunction, y : BinaryFunction) : BinaryFunction = BinaryFunction.SetBinaryIsIncluded(y, x)
-    static member (|-|) (x : BinaryFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetBinaryIsNotIncluded(x, y)
-    static member (|-|) (x : SetFunction, y : BinaryFunction) : BinaryFunction = BinaryFunction.SetBinaryIsNotIncluded(y, x)
-    static member (|+|) (x : SetFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetSetIsIncluded(x, y)
-    static member (|-|) (x : SetFunction, y : SetFunction) : BinaryFunction = BinaryFunction.SetSetIsNotIncluded(x, y)
 
     member this.Calculate() = this.Calculate(True)
     member this.Calculate(?definition : BinaryFunction) : SetFunction =
@@ -1285,16 +1455,28 @@ and [<CustomEquality>] [<NoComparison>] public SetFunction =
     member this.Identificator
         with get() : string[] =
             match this with
-            | Empty -> [|"∅"|]
-            | NaturalNumbers -> [|"ℕ"|]
-            | NaturalNumbersWithZero -> [|"ℕ ∪ {0}"|]
-            | WholeNumbers -> [|"ℤ"|]
-            | RationalNumbers -> [|"ℚ"|]
-            | RealNumbers -> [|"ℝ"|]
-            | ComplexNumbers -> [|"ℂ"|]
-            | Union _ -> [|"∪"|]
-            | Intersection _ -> [|"⋂"|]
-            | Difference _ -> [|"\\"|]
+            | Empty ->
+                [|"∅"|]
+            | NaturalNumbers ->
+                [|"ℕ"|]
+            | NaturalNumbersWithZero ->
+                [|"ℕ ∪ {0}"|]
+            | WholeNumbers ->
+                [|"ℤ"|]
+            | RationalNumbers ->
+                [|"ℚ"|]
+            | RealNumbers ->
+                [|"ℝ"|]
+            | ComplexNumbers ->
+                [|"ℂ"|]
+            | Union _ ->
+                [|"∪"|]
+            | Intersection _ ->
+                [|"⋂"|]
+            | Difference _ ->
+                [|"\\"|]
+            | None ->
+                [|"‽"|]
             | _ -> [|"?"|]
     
     override this.ToString() =
@@ -1325,10 +1507,6 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
     | ScalarAny of Function : ScalarFunction * Condition : BinaryFunction
     | ScalarExist of Function : ScalarFunction * Condition : BinaryFunction
     | ScalarFind of Function : ScalarFunction * Condition : BinaryFunction
-    | VectorGreaterThan of X : VectorFunction * Y : VectorFunction
-    | VectorLessThan of X : VectorFunction * Y : VectorFunction
-    | VectorGreaterThanOrEqual of X : VectorFunction * Y : VectorFunction
-    | VectorLessThanOrEqual of X : VectorFunction * Y : VectorFunction
     | VectorEqual of X : VectorFunction * Y : VectorFunction
     | VectorNotEqual of X : VectorFunction * Y : VectorFunction
     | VectorStructEqual of X : VectorFunction * Y : VectorFunction
@@ -1336,10 +1514,6 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
     | VectorAny of Function : VectorFunction * Condition : BinaryFunction
     | VectorExist of Function : VectorFunction * Condition : BinaryFunction
     | VectorFind of Function : VectorFunction * Condition : BinaryFunction
-    | MatrixGreaterThan of X : MatrixFunction * Y : MatrixFunction
-    | MatrixLessThan of X : MatrixFunction * Y : MatrixFunction
-    | MatrixGreaterThanOrEqual of X : MatrixFunction * Y : MatrixFunction
-    | MatrixLessThanOrEqual of X : MatrixFunction * Y : MatrixFunction
     | MatrixEqual of X : MatrixFunction * Y : MatrixFunction
     | MatrixNotEqual of X : MatrixFunction * Y : MatrixFunction
     | MatrixStructEqual of X : MatrixFunction * Y : MatrixFunction
@@ -1347,10 +1521,6 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
     | MatrixAny of Function : MatrixFunction * Condition : BinaryFunction
     | MatrixExist of Function : MatrixFunction * Condition : BinaryFunction
     | MatrixFind of Function : MatrixFunction * Condition : BinaryFunction
-    | SetGreaterThan of X : SetFunction * Y : SetFunction
-    | SetLessThan of X : SetFunction * Y : SetFunction
-    | SetGreaterThanOrEqual of X : SetFunction * Y : SetFunction
-    | SetLessThanOrEqual of X : SetFunction * Y : SetFunction
     | SetEqual of X : SetFunction * Y : SetFunction
     | SetNotEqual of X : SetFunction * Y : SetFunction
     | SetStructEqual of X : SetFunction * Y : SetFunction
@@ -1419,15 +1589,25 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
     member this.Contains(func : ScalarFunction) : bool =
         let x = this.Calculate()
         match x with
-        | And(list0) | Or(list0) | XOr(list0) ->
+        | And(list0)
+        | Or(list0)
+        | XOr(list0) ->
             list0.Aggregate(false, fun x y -> x || y.Contains(func))
         | Not(x) ->
             x.Contains(func)
-        | ScalarAny(x, y) | ScalarExist(x, y) | ScalarFind(x, y) ->
+        | ScalarAny(x, y)
+        | ScalarExist(x, y)
+        | ScalarFind(x, y) ->
             x.Contains(func) || y.Contains(func)
-        | ScalarGreaterThan(x, y) | ScalarGreaterThanOrEqual(x, y) | ScalarLessThan(x, y) | ScalarLessThanOrEqual(x, y) | ScalarEqual(x, y) | ScalarNotEqual(x, y) ->
+        | ScalarGreaterThan(x, y)
+        | ScalarGreaterThanOrEqual(x, y)
+        | ScalarLessThan(x, y)
+        | ScalarLessThanOrEqual(x, y)
+        | ScalarEqual(x, y)
+        | ScalarNotEqual(x, y) ->
             x.Contains(func) || y.Contains(func)
-        | x -> false
+        | x ->
+            false
 
     member this.Calculate() = this.Calculate(True)
     member this.Calculate(definition : BinaryFunction) : BinaryFunction =
@@ -1436,90 +1616,169 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
             let x = x.Calculate(definition)
             let y = y.Calculate(definition)
             match (x, y) with
-            | (True, True) | (False, False) ->
+            | (True, True)
+            | (False, False) ->
                 True
-            | (False, True) | (True, False) ->
+            | (True, False)
+            | (False, True) ->
                 False
-            | (Equal(x0, y0), Equal(x1, y1)) ->
-                (Equal(x0, x1) &&& Equal(y0, y1)).Calculate()
+            | (ScalarFind(x0, y0), ScalarFind(x1, y1)) ->
+                (ScalarEqual(x0, x1) &&& Equal(y0, y1)).Calculate()
             | (ScalarEqual(x0, y0), ScalarEqual(x1, y1)) ->
-                ((ScalarEqual(x0, x1) &&& ScalarEqual(y0, y1)) ||| (ScalarEqual(x0, y1) &&& ScalarEqual(x1, y0))).Calculate()
-            | (x, y) -> Equal(x, y)
+                (ScalarEqual(x0, x1) &&& ScalarEqual(y0, y1) ||| ScalarEqual(x0, y1) &&& ScalarEqual(x1, y0)).Calculate()
+            | (x, y) ->
+                Equal(x, y)
         | NotEqual(x, y) ->
             (~~~Equal(x, y)).Calculate(definition)
         | ScalarGreaterThan(x, y) ->
             let x = x.Calculate(definition)
             let y = y.Calculate(definition)
             match (x, y) with
-            | (Constant(a), Constant(b)) -> BinaryFunction.op_Implicit(a > b)
-            | (Constant(a), Pi) -> BinaryFunction.op_Implicit(a > Math.PI)
-            | (Pi, Constant(a)) -> BinaryFunction.op_Implicit(Math.PI > a)
-            | (Constant(a), Exponent) -> BinaryFunction.op_Implicit(a > Math.E)
-            | (Exponent, Constant(a)) -> BinaryFunction.op_Implicit(Math.E > a)
-            | _ -> ScalarGreaterThan(x, y)
+            | (Constant(a), Constant(b)) ->
+                BinaryFunction.op_Implicit(a > b)
+            | (Constant(a), Pi) ->
+                BinaryFunction.op_Implicit(a > Math.PI)
+            | (Pi, Constant(a)) ->
+                BinaryFunction.op_Implicit(Math.PI > a)
+            | (Constant(a), Exponent) ->
+                BinaryFunction.op_Implicit(a > Math.E)
+            | (Exponent, Constant(a)) ->
+                BinaryFunction.op_Implicit(Math.E > a)
+            | _ ->
+                ScalarGreaterThan(x, y)
         | ScalarGreaterThanOrEqual(x, y) ->
             let x = x.Calculate(definition)
             let y = y.Calculate(definition)
             match (x, y) with
-            | (Constant(a), Constant(b)) -> BinaryFunction.op_Implicit(a >= b)
-            | (ScalarFunction.Module _, Constant(b)) when b = 0. -> True
-            | (Constant(a), Pi) -> BinaryFunction.op_Implicit(a >= Math.PI)
-            | (Pi, Constant(a)) -> BinaryFunction.op_Implicit(Math.PI >= a)
-            | (Constant(a), Exponent) -> BinaryFunction.op_Implicit(a >= Math.E)
-            | (Exponent, Constant(a)) -> BinaryFunction.op_Implicit(Math.E >= a)
-            | _ -> ScalarGreaterThanOrEqual(x, y)
+            | (Constant(a), Constant(b)) ->
+                BinaryFunction.op_Implicit(a >= b)
+            | (ScalarFunction.Module _, Constant(b)) when b = 0. ->
+                True
+            | (Constant(a), Pi) ->
+                BinaryFunction.op_Implicit(a >= Math.PI)
+            | (Pi, Constant(a)) ->
+                BinaryFunction.op_Implicit(Math.PI >= a)
+            | (Constant(a), Exponent) ->
+                BinaryFunction.op_Implicit(a >= Math.E)
+            | (Exponent, Constant(a)) ->
+                BinaryFunction.op_Implicit(Math.E >= a)
+            | _ ->
+                ScalarGreaterThanOrEqual(x, y)
         | ScalarLessThan(x, y) ->
             let x = x.Calculate(definition)
             let y = y.Calculate(definition)
             match (x, y) with
-            | (Constant(a), Constant(b)) -> BinaryFunction.op_Implicit(a < b)
-            | (Constant(a), Pi) -> BinaryFunction.op_Implicit(a < Math.PI)
-            | (Pi, Constant(a)) -> BinaryFunction.op_Implicit(Math.PI < a)
-            | (Constant(a), Exponent) -> BinaryFunction.op_Implicit(a < Math.E)
-            | (Exponent, Constant(a)) -> BinaryFunction.op_Implicit(Math.E < a)
-            | _ -> ScalarLessThan(x, y)
+            | (Constant(a), Constant(b)) ->
+                BinaryFunction.op_Implicit(a < b)
+            | (Constant(a), Pi) ->
+                BinaryFunction.op_Implicit(a < Math.PI)
+            | (Pi, Constant(a)) ->
+                BinaryFunction.op_Implicit(Math.PI < a)
+            | (Constant(a), Exponent) ->
+                BinaryFunction.op_Implicit(a < Math.E)
+            | (Exponent, Constant(a)) ->
+                BinaryFunction.op_Implicit(Math.E < a)
+            | _ ->
+                ScalarLessThan(x, y)
         | ScalarLessThanOrEqual(x, y) ->
             let x = x.Calculate(definition)
             let y = y.Calculate(definition)
             match (x, y) with
-            | (Constant(a), Constant(b)) -> BinaryFunction.op_Implicit(a <= b)
-            | (Constant(a), ScalarFunction.Module _) when a = 0. -> True
-            | (Constant(a), Pi) -> BinaryFunction.op_Implicit(a <= Math.PI)
-            | (Pi, Constant(a)) -> BinaryFunction.op_Implicit(Math.PI <= a)
-            | (Constant(a), Exponent) -> BinaryFunction.op_Implicit(a <= Math.E)
-            | (Exponent, Constant(a)) -> BinaryFunction.op_Implicit(Math.E <= a)
-            | _ -> ScalarLessThanOrEqual(x, y)
+            | (Constant(a), Constant(b)) ->
+                BinaryFunction.op_Implicit(a <= b)
+            | (Constant(a), ScalarFunction.Module _) when a = 0. ->
+                True
+            | (Constant(a), Pi) ->
+                BinaryFunction.op_Implicit(a <= Math.PI)
+            | (Pi, Constant(a)) ->
+                BinaryFunction.op_Implicit(Math.PI <= a)
+            | (Constant(a), Exponent) ->
+                BinaryFunction.op_Implicit(a <= Math.E)
+            | (Exponent, Constant(a)) ->
+                BinaryFunction.op_Implicit(Math.E <= a)
+            | _ ->
+                ScalarLessThanOrEqual(x, y)
         | ScalarEqual(x, y) ->
             let x = x.Calculate(definition)
             let y = y.Calculate(definition)
             match (x, y) with
-            | (ScalarFunction.Constant(a), ScalarFunction.Constant(b)) ->
-                BinaryFunction.op_Implicit((a = b))
-            | (ScalarFunction.Variable(name0), ScalarFunction.Variable(name1)) ->
+            | (Constant(a), Constant(b)) ->
+                match a = b with
+                | true ->
+                    True
+                | false ->
+                    False
+            | (Variable(name0), Variable(name1)) ->
                 match name0 = name1 with
                 | true ->
                     True
                 | false ->
                     ScalarEqual(x, y)
-            | (ScalarFunction.Addition(list0), ScalarFunction.Addition(list1)) | (ScalarFunction.Multiply(list0), ScalarFunction.Multiply(list1)) ->
-                match And(list0.Select(fun x -> Or(list1.Select(fun y -> ScalarEqual(x, y))))).Calculate() with
-                | True -> True
-                | False -> False
-                | _ -> ScalarEqual(x, y)
-            | (ScalarFunction.Subtraction(fun00, fun01), ScalarFunction.Subtraction(fun10, fun11)) | (ScalarFunction.Division(fun00, fun01), ScalarFunction.Division(fun10, fun11)) | (ScalarFunction.Power(fun00, fun01), ScalarFunction.Power(fun10, fun11)) | (ScalarFunction.Log(fun00, fun01), ScalarFunction.Log(fun10, fun11)) ->
-                (ScalarEqual(fun00, fun10) &&& ScalarEqual(fun01, fun11)).Calculate()
-            | (ScalarFunction.Ln(fun0), ScalarFunction.Ln(fun1)) | (ScalarFunction.Lg(fun0), ScalarFunction.Lg(fun1)) | (ScalarFunction.Sin(fun0), ScalarFunction.Sin(fun1)) | (ScalarFunction.Cos(fun0), ScalarFunction.Cos(fun1)) | (ScalarFunction.Negate(fun0), ScalarFunction.Negate(fun1)) ->
-                ScalarEqual(fun0, fun1).Calculate()
-            | (ScalarFunction.Ln(fun0), ScalarFunction.Log(fun10, fun11)) | (ScalarFunction.Log(fun10, fun11), ScalarFunction.Lg(fun0)) ->
-                (ScalarEqual(fun10, Exponent) &&& ScalarEqual(fun0, fun11)).Calculate()
-            | (ScalarFunction.Lg(fun0), ScalarFunction.Log(fun10, fun11)) | (ScalarFunction.Log(fun10, fun11), ScalarFunction.Lg(fun0)) ->
-                (ScalarEqual(fun10, Constant(10.)) &&& ScalarEqual(fun0, fun11)).Calculate()
-            | (ScalarFunction.Pi, ScalarFunction.Pi) ->
-                True
-            | (ScalarFunction.Pi, ScalarFunction.Pi) | (ScalarFunction.Exponent, ScalarFunction.Exponent) | (ScalarFunction.ImaginaryOne, ScalarFunction.ImaginaryOne) | (ScalarFunction.None, ScalarFunction.None) ->
+            | (ScalarFunction.Addition(list0), ScalarFunction.Addition(list1))
+            | (ScalarFunction.Multiply(list0), ScalarFunction.Multiply(list1)) ->
+                match list0.SetEqual(list1) with
+                | true ->
+                    True
+                | false ->
+                    ScalarEqual(x, y)
+            | (ScalarFunction.Subtraction(x0, y0), ScalarFunction.Subtraction(x1, y1))
+            | (ScalarFunction.Division(x0, y0), ScalarFunction.Division(x1, y1))
+            | (ScalarFunction.Power(x0, y0), ScalarFunction.Power(x1, y1))
+            | (Log(x0, y0), Log(x1, y1)) ->
+                match (ScalarEqual(x0, x1) &&& ScalarEqual(y0, y1)).Calculate() with
+                | True ->
+                    True
+                | _ ->
+                    ScalarEqual(x, y)
+            | (Sin(x0), Sin(x1))
+            | (Cos(x0), Cos(x1))
+            | (Tg(x0), Tg(x1))
+            | (Ctg(x0), Ctg(x1))
+            | (Sec(x0), Sec(x1))
+            | (Cosec(x0), Cosec(x1))
+            | (Cot(x0), Cot(x1))
+            | (Arcsin(x0), Arcsin(x1))
+            | (Arccos(x0), Arccos(x1))
+            | (Arctg(x0), Arctg(x1))
+            | (Arcctg(x0), Arcctg(x1))
+            | (Sign(x0), Sign(x1))
+            | (Floor(x0), Floor(x1))
+            | (Ceiling(x0), Ceiling(x1))
+            | (IntegerPart(x0), IntegerPart(x1))
+            | (Module(x0), Module(x1))
+            | (Confirmation(x0), Confirmation(x1))
+            | (ScalarFunction.Negate(x0), ScalarFunction.Negate(x1)) ->
+                match ScalarEqual(x0, x1).Calculate() with
+                | True ->
+                    True
+                | _ ->
+                    ScalarEqual(x, y)
+            | (VectorElementsCount(x0), VectorElementsCount(x1))
+            | (Length(x0), Length(x1)) ->
+                match VectorEqual(x0, x1).Calculate() with
+                | True ->
+                    True
+                | _ ->
+                    ScalarEqual(x, y)
+            | (VectorElementAt(x0, y0), VectorElementAt(x1, y1)) ->
+                match (VectorEqual(x0, x1) &&& ScalarEqual(y0, y1)).Calculate() with
+                | True ->
+                    True
+                | _ ->
+                    ScalarEqual(x, y)
+            | (MatrixElementAt(x0, y0, z0), MatrixElementAt(x1, y1, z1)) ->
+                match (MatrixEqual(x0, x1) &&& ScalarEqual(y0, y1) &&& ScalarEqual(z0, z1)).Calculate() with
+                | True ->
+                    True
+                | _ ->
+                    ScalarEqual(x, y)
+            | (Pi, Pi)
+            | (Exponent, Exponent)
+            | (ImaginaryOne, ImaginaryOne)
+            | (ScalarFunction.None, ScalarFunction.None) ->
                 True
             | (IntegerPart(x), y) | (y, IntegerPart(x)) when x = y ->
-                (x |+| WholeNumbers).Calculate()
+                (SetScalarIsIncluded(x, WholeNumbers)).Calculate()
             | (Module(x), y) | (y, Module(x)) when x = y ->
                 ScalarGreaterThanOrEqual(x, Constant(0.)).Calculate()
             | _ ->
@@ -1534,12 +1793,8 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
                 BinaryFunction.op_Implicit(list0.SetEqual(list1))
             | (ScalarFunction.Subtraction(fun00, fun01), ScalarFunction.Subtraction(fun10, fun11)) | (ScalarFunction.Division(fun00, fun01), ScalarFunction.Division(fun10, fun11)) | (ScalarFunction.Power(fun00, fun01), ScalarFunction.Power(fun10, fun11)) | (ScalarFunction.Log(fun00, fun01), ScalarFunction.Log(fun10, fun11)) ->
                 BinaryFunction.op_Implicit(fun00 = fun10 && fun01 = fun11)
-            | (ScalarFunction.Ln(fun0), ScalarFunction.Ln(fun1)) | (ScalarFunction.Lg(fun0), ScalarFunction.Lg(fun1)) | (ScalarFunction.Sin(fun0), ScalarFunction.Sin(fun1)) | (ScalarFunction.Cos(fun0), ScalarFunction.Cos(fun1)) | (ScalarFunction.Negate(fun0), ScalarFunction.Negate(fun1)) ->
+            | (ScalarFunction.Sin(fun0), ScalarFunction.Sin(fun1)) | (ScalarFunction.Cos(fun0), ScalarFunction.Cos(fun1)) | (ScalarFunction.Negate(fun0), ScalarFunction.Negate(fun1)) ->
                 BinaryFunction.op_Implicit((fun0 = fun1))
-            | (ScalarFunction.Ln(fun0), ScalarFunction.Log(fun10, fun11)) | (ScalarFunction.Log(fun10, fun11), ScalarFunction.Lg(fun0)) ->
-                BinaryFunction.op_Implicit(fun10 = Exponent && fun0 = fun11)
-            | (ScalarFunction.Lg(fun0), ScalarFunction.Log(fun10, fun11)) | (ScalarFunction.Log(fun10, fun11), ScalarFunction.Lg(fun0)) ->
-                BinaryFunction.op_Implicit(fun10 = Pi && fun0 = fun11)
             | (ScalarFunction.Pi, ScalarFunction.Pi) | (ScalarFunction.Exponent, ScalarFunction.Exponent) | (ScalarFunction.ImaginaryOne, ScalarFunction.ImaginaryOne) | (ScalarFunction.None, ScalarFunction.None) ->
                 True
             | _ -> False
@@ -1572,20 +1827,37 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
                 let x = functions.ElementAt(0).Calculate(definition)
                 let y = functions.ElementAt(1).Calculate(definition)
                 match (x, y) with
-                | (False, _) | (_, False) -> False
-                | (True, True) -> True
-                | (x, True) | (True, x) -> x
+                | (False, _)
+                | (_, False) ->
+                    False
+                | (True, True) ->
+                    True
+                | (x, True)
+                | (True, x) ->
+                    x
+                | (ScalarFind(x0, y0), ScalarFind(x1, y1)) ->
+                    match ScalarEqual(x0, x1).Calculate() with
+                    | True ->
+                        ScalarFind(x0, y0 &&& y1).Calculate()
+                    | _ ->
+                        ScalarFind(x0, y0) &&& ScalarFind(x1, y1)
                 | (ScalarAny(x0, y0), ScalarAny(x1, y1)) ->
                     match (x0, y0, x1, y1) with
-                    | (x0, y0, x1, y1) when x0 = x1 -> ScalarAny(x0, y0 &&& y1).Calculate()
-                    | (x0, y0, x1, y1) -> ScalarAny(x0, y0) &&& ScalarAny(x1, y1)
-                | (ScalarAny(x0, y0), ScalarEqual(x1, y1)) | (ScalarEqual(x1, y1), ScalarAny(x0, y0)) ->
+                    | (x0, y0, x1, y1) when x0 = x1 ->
+                        ScalarAny(x0, y0 &&& y1).Calculate()
+                    | (x0, y0, x1, y1) ->
+                        ScalarAny(x0, y0) &&& ScalarAny(x1, y1)
+                | (ScalarAny(x0, y0), ScalarEqual(x1, y1))
+                | (ScalarEqual(x1, y1), ScalarAny(x0, y0)) ->
                     match (x0, y0, x1, y1) with
                     | (x0, y0, x1, y1) when x0 = x1 ->
                         match (y0, y1) with
-                        | (True, x) -> ScalarEqual(x0, x).Calculate()
-                        | (y0, y1) -> (ScalarAny(x0, y0) &&& ScalarEqual(x1, y1)).Calculate()
-                    | (x0, y0, x1, y1) -> (ScalarAny(x0, y0) &&& ScalarEqual(x1, y1)).Calculate()
+                        | (True, y1) ->
+                            ScalarEqual(x1, y1)
+                        | (y0, y1) ->
+                            (ScalarAny(x0, y0) &&& ScalarEqual(x1, y1)).Calculate()
+                    | (x0, y0, x1, y1) ->
+                        ScalarAny(x0, y0) &&& ScalarEqual(x1, y1)
                 | (ScalarLessThan(x0, y0), ScalarGreaterThan(x1, y1)) | (ScalarGreaterThan(x1, y1), ScalarLessThan(x0, y0)) ->
                     match (x0, y0, x1, y1) with
                     | (x0, y0, x1, y1) when x0 = x1 && y0 = y1 -> ScalarNotEqual(x0, y0).Calculate()
@@ -1612,17 +1884,26 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
             | _ -> this
         | Or(functions) ->
             match functions.Count() with
-            | 0 -> True
-            | 1 -> functions.ElementAt(0).Calculate(definition)
+            | 0 ->
+                True
+            | 1 ->
+                functions.ElementAt(0).Calculate(definition)
             | 2 ->
                 let x = functions.ElementAt(0).Calculate(definition)
                 let y = functions.ElementAt(1).Calculate(definition)
                 match (x, y) with
-                | (True, _) | (_, True) -> True
-                | (False, False) -> False
-                | (x, False) | (False, x) -> x
-                | _ -> x ||| y
-            | _ -> this
+                | (True, _)
+                | (_, True) ->
+                    True
+                | (False, False) ->
+                    False
+                | (x, False)
+                | (False, x) ->
+                    x
+                | _ ->
+                    x ||| y
+            | _ ->
+                this
         | VectorFind(x, y) ->
             let x = x.Calculate(definition)
             let y = y.Calculate(definition)
@@ -1636,38 +1917,54 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
                         | ([], [], []) -> definition
                         | _ -> ComputationError(this, ComputationErrors.InternalError)
                     func(List.ofSeq(list0), List.ofSeq(list1), List.ofSeq(list2), True)
-                | _ -> VectorFind(x, y)
-            | y -> VectorFind(x, y)
+                | _ ->
+                    VectorFind(x, y)
+            | y ->
+                VectorFind(x, y)
         | ScalarFind(x, fun1) ->
             let x =
                 match x with
-                | Variable _ -> x
-                | x -> x.Calculate(definition)
+                | Variable _ ->
+                    x
+                | x ->
+                    x.Calculate(definition)
             let fun1 = fun1.Calculate(definition)
             match x with
             | ScalarFunction.Variable(name0) ->
                 match fun1 with
                 | ScalarFind(y, z) ->
                     match x = y with
-                    | true -> ScalarFind(x, z)
-                    | false -> ScalarAny(x, True)
+                    | true ->
+                        ScalarFind(x, z)
+                    | false ->
+                        ScalarFind(x, ScalarAny(x, True))
                 | And(list0) ->
                     match list0.Count() with
-                    | 0 | 1 -> ComputationError(this, ComputationErrors.InternalError)
-                    | _ -> And(list0.Select(fun z -> ScalarFind(x, z))).Calculate()
+                    | 0
+                    | 1 ->
+                        ComputationError(this, ComputationErrors.InternalError)
+                    | _ ->
+                        And(list0.Select(fun z -> ScalarFind(x, z))).Calculate()
                 | ScalarEqual(fun10, fun11) ->
                     match (fun10, fun11) with
-                    | (fun10, fun11) | (fun11, fun10) when not(fun10.Contains(x)) && not(fun11.Contains(x)) -> ScalarAny(x, True)
-                    | (fun10, fun11) | (fun11, fun10) when fun10.Contains(x) && not(fun11.Contains(x)) ->
+                    | (fun10, fun11)
+                    | (fun11, fun10) when not(fun10.Contains(x)) && not(fun11.Contains(x)) ->
+                        ScalarAny(x, True)
+                    | (fun10, fun11)
+                    | (fun11, fun10) when fun10.Contains(x) && not(fun11.Contains(x)) ->
                         match fun10 with
                         | ScalarFunction.Variable(name1) ->
                             match name0 = name1 with
-                            | true -> ScalarEqual(fun10, fun11)
-                            | false -> ScalarAny(fun10, True)
+                            | true ->
+                                ScalarFind(x, ScalarEqual(x, fun11))
+                            | false ->
+                                raise(Exception())
                         | ScalarFunction.Power(fun100, fun101) ->
                             match (fun100, fun101) with
-                            | (fun100, fun101) when fun100.Contains(x) && not(fun101.Contains(x)) -> ScalarFind(x, ScalarEqual(fun100, fun11 ** (Constant(1.) / fun101))).Calculate()
-                            | _ -> this
+                            | (fun100, fun101) when fun100.Contains(x) && not(fun101.Contains(x)) ->
+                                ScalarFind(x, ScalarEqual(fun100, fun11 ** (Constant(1.) / fun101))).Calculate()
+                            | _ ->
+                                this
                         | ScalarFunction.Multiply(list0) ->
                             let mutable y = fun10
                             let mutable z = fun11
@@ -1688,20 +1985,32 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
                                 | false ->
                                     y <- y - a
                                     z <- z - a
-                                | true -> ()
+                                | true ->
+                                    ()
                             y <- y.Calculate()
                             z <- z.Calculate()
                             ScalarFind(x, ScalarEqual(y, z)).Calculate()
                         | ScalarFunction.Negate(x) -> ScalarFind(x, ScalarEqual(x, -fun11)).Calculate()
                         | ScalarFunction.Subtraction(y, z) ->
                             match (y, z) with
-                            | (y, z) when x.Contains(x) && not(y.Contains(x)) -> ScalarFind(x, ScalarEqual(y, fun11 + z)).Calculate()
-                            | (y, z) when not(x.Contains(x)) && y.Contains(x) -> ScalarFind(x, ScalarEqual(z, y - fun11)).Calculate()
-                            | _ -> this
+                            | (y, z) when y.Contains(x) && not(z.Contains(x)) ->
+                                ScalarFind(x, ScalarEqual(y, fun11 + z)).Calculate()
+                            | (y, z) when not(y.Contains(x)) && z.Contains(x) ->
+                                ScalarFind(x, ScalarEqual(z, y - fun11)).Calculate()
+                            | _ ->
+                                this
+                        | ScalarFunction.Division(y, z) ->
+                            match (y, z) with
+                            | (y, z) when y.Contains(x) && not(z.Contains(x)) ->
+                                ScalarFind(x, ScalarEqual(y, fun11 * z)).Calculate()
+                            | (y, z) when not(y.Contains(x)) && z.Contains(x) ->
+                                ScalarFind(x, ScalarEqual(z, y / fun11)).Calculate()
+                            | _ ->
+                                this
                         | y -> ScalarFind(x, ScalarEqual(y, fun11))
                     | (y, z) -> ScalarFind(x, ScalarEqual(y, z))
-                | True -> ScalarAny(x, True)
-                | False -> ScalarAny(x, False)
+                | True -> ScalarFind(x, ScalarAny(x, True))
+                | False -> ScalarFind(x, ScalarAny(x, False))
                 | _ -> ScalarFind(x, fun1)
             | _ -> this
         | SetScalarIsIncluded(x, y) ->
@@ -1719,7 +2028,7 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
                 | x -> False
             | NaturalNumbersWithZero ->
                 match x with
-                | x when BinaryFunction.op_True(x |+| NaturalNumbers) -> True
+                | x when SetScalarIsIncluded(x, NaturalNumbers) = True -> True
                 | Constant(value) ->
                     match value with
                     | x when x = 0. -> True
@@ -1727,12 +2036,12 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
                 | x -> False
             | WholeNumbers ->
                 match x with
-                | x when BinaryFunction.op_True(Module(x) |+| NaturalNumbersWithZero) -> True
+                | x when SetScalarIsIncluded(Module(x), NaturalNumbersWithZero) = True -> True
                 | IntegerPart _ -> True
                 | _ -> SetScalarIsIncluded(x, y)
             | RationalNumbers ->
                 match x with
-                | x when BinaryFunction.op_True(Module(x) |+| WholeNumbers) -> True
+                | x when SetScalarIsIncluded(Module(x), WholeNumbers) = True -> True
                 | _ -> False
             | RealNumbers ->
                 match x with
@@ -1741,7 +2050,7 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
                 | SilverNumber -> True
                 | GoldenNumber -> True
                 | EulerConstant -> True
-                | x when BinaryFunction.op_True(Module(x) |+| RationalNumbers) -> True
+                | x when SetScalarIsIncluded(Module(x), RationalNumbers) = True -> True
                 | _ -> this
             | _ -> this
         | VectorIsColumn(x) ->
@@ -1755,43 +2064,74 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
         | VectorIsRow(x) ->
             let x = x.Calculate(definition)
             match x with
-            | Vector _ -> True
-            | ColumnVector _ -> False
-            | MatrixRowAt _ -> True
-            | MatrixColumnAt _ -> False
-            | x -> VectorIsRow(x)
+            | MatrixRowAt _
+            | Vector _ ->
+                True
+            | ColumnVector _
+            | MatrixColumnAt _ ->
+                False
+            | x ->
+                VectorIsRow(x)
         | ScalarAny(x, y) ->
             let x = x.Calculate(definition)
             let y = y.Calculate(definition)
             match y with
-            | False -> ScalarAny(x, False)
-            | True -> ScalarAny(x, True)
-            | y -> ScalarAny(x, y)
-        | _ -> this
+            | False ->
+                ScalarAny(x, False)
+            | True ->
+                ScalarAny(x, True)
+            | y ->
+                ScalarAny(x, y)
+        | _ ->
+            this
 
     member this.Identificator
         with get() : string[] =
             match this with
-            | And _ -> [|"∧"; "&"|]
-            | Or _ -> [|"∨"; "|"|]
-            | XOr _ -> [|"⊕"; "⊻"; "⨧"|]
-            | Not _ -> [|"¬"|]
-            | Implication _ -> [|"⇒"|]
-            | Identity _ -> [|"⇔"|]
-            | ScalarEqual _ | VectorEqual _ -> [|"="|]
-            | ScalarNotEqual _ | VectorNotEqual _ -> [|"≠"|]
-            | ScalarGreaterThan _ -> [|">"|]
-            | ScalarGreaterThanOrEqual _ -> [|"⩾"; "≥"|]
-            | ScalarLessThan _ -> [|"<"|]
-            | ScalarLessThanOrEqual _ -> [|"⩽"; "≤"|]
-            | ScalarAny _ -> [|"∀"|]
-            | ScalarExist _ -> [|"∃"|]
-            | ScalarFind _ -> [|":"|]
-            | SetScalarIsIncluded _ -> [|"∈"|]
-            | SetScalarIsNotIncluded _ -> [|"∉"|]
-            | True -> [|"true"; "1"|]
-            | False -> [|"false"; "0"|]
-            | _ -> [|"?"|]
+            | And _ ->
+                [|"∧"|]
+            | Or _ ->
+                [|"∨"|]
+            | XOr _ ->
+                [|"⊕"|]
+            | Not _ ->
+                [|"¬"|]
+            | Implication _ ->
+                [|"⇒"|]
+            | Identity _ ->
+                [|"⇔"|]
+            | ScalarEqual _
+            | VectorEqual _ ->
+                [|"="|]
+            | ScalarNotEqual _
+            | VectorNotEqual _ ->
+                [|"≠"|]
+            | ScalarGreaterThan _ ->
+                [|">"|]
+            | ScalarGreaterThanOrEqual _ ->
+                [|"⩾"|]
+            | ScalarLessThan _ ->
+                [|"<"|]
+            | ScalarLessThanOrEqual _ ->
+                [|"⩽"|]
+            | ScalarAny _ ->
+                [|"∀"|]
+            | ScalarExist _ ->
+                [|"∃"|]
+            | ScalarFind _ ->
+                [|":"|]
+            | SetScalarIsIncluded _ ->
+                [|"∈"|]
+            | SetScalarIsNotIncluded _ ->
+                [|"∉"|]
+            | True ->
+                [|"true"; "1"|]
+            | False ->
+                [|"false"; "0"|]
+            | None ->
+                [|"‽"|]
+            | _ ->
+                [|"?"|]
 
     override this.ToString() : string =
         let mutable result = StringBuilder()
