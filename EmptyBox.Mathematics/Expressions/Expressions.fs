@@ -715,23 +715,31 @@ type [<CustomEquality>] [<CustomComparison>] public ScalarFunction =
                     | _ ->
                         x0 ** y0 / x1 ** y1
             | (Power(x0, y0), y) ->
-                let calculated = (x0 / y).Calculate()
-                match ScalarStructNotEqual(x0 / y, calculated).Calculate() with
+                match ScalarLessThan(y0, Constant(0.)).Calculate() with
                 | True ->
-                    (calculated * x0 ** (y0 - Constant(1.))).Calculate()
+                    (Constant(1.) / (x0 ** -y0 * y)).Calculate()
                 | _ ->
-                    x0 ** y0 / y
-            | (x, Power(x1, y1)) ->
-                match ScalarEqual(x, x1).Calculate() with
-                | True ->
-                    (Constant(1.) / Power(x1, y1 - Constant(1.))).Calculate()
-                | _ ->
-                    let calculated = (x / x1).Calculate()
-                    match ScalarStructNotEqual(x / x1, calculated).Calculate() with
+                    let calculated = (x0 / y).Calculate()
+                    match ScalarStructNotEqual(x0 / y, calculated).Calculate() with
                     | True ->
-                        (calculated / x1 ** (y1 - Constant(1.))).Calculate()
+                        (calculated * x0 ** (y0 - Constant(1.))).Calculate()
                     | _ ->
-                        x / x1 ** y1
+                        x0 ** y0 / y
+            | (x, Power(x1, y1)) ->
+                match ScalarLessThan(y1, Constant(0.)).Calculate() with
+                | True ->
+                    (x * x1 ** -y1).Calculate()
+                | _ ->
+                    match ScalarEqual(x, x1).Calculate() with
+                    | True ->
+                        (Constant(1.) / Power(x1, y1 - Constant(1.))).Calculate()
+                    | _ ->
+                        let calculated = (x / x1).Calculate()
+                        match ScalarStructNotEqual(x / x1, calculated).Calculate() with
+                        | True ->
+                            (calculated / x1 ** (y1 - Constant(1.))).Calculate()
+                        | _ ->
+                            x / x1 ** y1
             | (Addition(list0), y) ->
                 list0.Aggregate((None, None, y), (fun x y -> ScalarFunction._Optimize_p1_Direct(x, y, (fun (x, y) -> x + y), fun (x, y)-> x / y)), (fun x -> ScalarFunction._AccumulatorTransform_p1_Direct(x, (fun (x, y) -> x + y), fun (x, y) -> x / y)))
             | (Subtraction(x, y), z) ->
@@ -1913,7 +1921,9 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
                 | (Vector(list0), Vector(list1), Vector(list2)) | (ColumnVector(list0), ColumnVector(list1), ColumnVector(list2)) ->
                     let rec func(x, y, z, definition) =
                         match (x, y, z) with
-                        | (x :: x_tail, y :: y_tail, z :: z_tail) -> ScalarFind(x, ScalarEqual(y, z)).Calculate(func(x_tail, y_tail, z_tail, definition))
+                        | (x :: x_tail, y :: y_tail, z :: z_tail) ->
+                            let def = func(x_tail, y_tail, z_tail, definition)
+                            (ScalarFind(x, ScalarEqual(y, z)).Calculate(def) &&& def).Calculate()
                         | ([], [], []) -> definition
                         | _ -> ComputationError(this, ComputationErrors.InternalError)
                     func(List.ofSeq(list0), List.ofSeq(list1), List.ofSeq(list2), True)
@@ -1949,7 +1959,7 @@ and [<CustomEquality>] [<NoComparison>] public BinaryFunction =
                     match (fun10, fun11) with
                     | (fun10, fun11)
                     | (fun11, fun10) when not(fun10.Contains(x)) && not(fun11.Contains(x)) ->
-                        ScalarAny(x, True)
+                        ScalarFind(x, ScalarAny(x, True))
                     | (fun10, fun11)
                     | (fun11, fun10) when fun10.Contains(x) && not(fun11.Contains(x)) ->
                         match fun10 with
