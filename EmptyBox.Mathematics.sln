@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27004.2009
+VisualStudioVersion = 15.0.27130.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "EmptyBox.Mathematics", "EmptyBox.Mathematics\EmptyBox.Mathematics.fsproj", "{9A0B96AF-04AB-42C7-B882-CEAB888A98BA}"
 EndProject

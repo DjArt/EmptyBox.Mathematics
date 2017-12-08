@@ -38,15 +38,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="EmptyBox.ScriptRuntime" Version="0.0.0.1" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Update="FSharp.Core" Version="4.2.3" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Text\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EmptyBox.ScriptRuntime" Version="0.0.0.2" />
   </ItemGroup>
 
 </Project>
